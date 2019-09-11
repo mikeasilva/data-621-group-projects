@@ -19,7 +19,7 @@ library(gridExtra)
 ## Global options
 options(max.print="75")
 opts_chunk$set(echo=FALSE,
-	             cache=TRUE,
+	             cache=FALSE,
                prompt=FALSE,
                tidy=TRUE,
                comment=NA,
@@ -62,7 +62,7 @@ plot_me <- function(d, title, xlab, ylab){
        y = ylab) +
     theme(panel.background = element_blank(),
         panel.grid.major = element_line(color = "gray95")) +
-    geom_vline(xintercept = mean(d$x, nna.rm = TRUE), color = "red") +
+    geom_vline(xintercept = mean(d$x, na.rm = TRUE), color = "red") +
     geom_vline(xintercept = median(d$x, na.rm = TRUE), color = "blue")
   # Add annotation for NA's
   if(nas > 0){
@@ -72,6 +72,7 @@ plot_me <- function(d, title, xlab, ylab){
   # Create a scatter plot
   scatter <- ggplot(d, aes(x, TARGET_WINS)) +
     geom_point() + 
+    geom_smooth(method = lm) + 
     labs(x = xlab,
          y = ylab) +
     expand_limits(y=0) +
