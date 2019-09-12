@@ -1,5 +1,6 @@
 ---
 title: "Exploratory Data Analysis"
+author: "Critical Thinking Group 3"
 date: "`r Sys.Date()`"
 output:
   rmdformats::readthedown:
@@ -178,4 +179,3 @@ training %>%
   mutate(x = TEAM_PITCHING_SO) %>%
   plot_me(., "Strikouts by Pitcher", element_blank(), element_blank())
 ```
-
