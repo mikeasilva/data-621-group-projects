@@ -1,0 +1,98 @@
+---
+title: "Additional Exploratory Data Analysis"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(corrplot)
+```
+
+```{r, include=FALSE}
+# Read in the training data
+training <- read_csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw1/data/moneyball-training-data.csv")
+
+# Ensure we have explicit NAs for missing data
+training <- complete(training)
+
+# Remove redundant "TEAM_" moniker
+names(training) <- names(training) %>% str_remove("TEAM_")
+```
+
+## Correlation
+
+Below is a visual showing every variable and their correlations within the training data set (including only complete observations).
+
+```{r correlation plot}
+train.cor <- training %>% select(-INDEX) %>% cor(., use = "complete.obs")
+corrplot(train.cor, method="color",type="upper", tl.col="black", tl.cex = 0.7,
+         diag=F)
+```
+
+```{r}
+# Correlation with response variable specifically
+data.frame(cor(training$TARGET_WINS, training, use="complete.obs")) %>%
+  gather(key="Variable", value="Correlation",-INDEX) %>% select(-INDEX) %>%
+  mutate(Correlation = cell_spec(round(Correlation,4),
+                                 "html",
+                                 color = ifelse(abs(Correlation) > .4,
+                                                "red", "black"))) %>%
+  kable(format = "html", escape=F) %>% 
+  kable_styling(full_width = F, position = "left") %>%
+  add_header_above(c("Correlation with 'TARGET_WINS'"=2)) %>%
+  footnote(general = "Red highlight indicates correlation > 0.4 (pos or neg).")
+```
+
+We see some correlation between a few explanatory variables and our target variable:
+
+`BATTING_H`,`BATTING_HR`,`BATTING_BB`,`PITCHING_H`,`PITCHING_HR`, and `PITCHING_BB`.
+
+However there is some correlation between them that we may have to account for:
+
+```{r smaller correlation plot}
+train.cor2 <- training %>%
+  select(BATTING_H,BATTING_HR,BATTING_BB,PITCHING_H,PITCHING_HR,PITCHING_BB) %>%
+  cor(., use = "complete.obs")
+
+corrplot(train.cor2, method="color",type="lower", tl.col="black", tl.cex = 0.7,
+         diag=F)
+```
+
+## Missing Data
+Of the `r comma(nrow(training))` observations in the training data set, only `r comma(sum(complete.cases(training)))` are complete (no missing values in any variable). So, some imputation may be required to ensure we have enough training data to work with.
+
+Looking at which variables are missing:
+
+```{r}
+# Get variable names
+vars <- names(training)[3:17]
+missing <- data.frame(variable=NA,missingVals=0)
+
+for(i in 1:length(vars)){
+  missing <- rbind(missing,
+                   data.frame(variable = paste(vars[i]),
+                              missingVals = sum(is.na(training[,paste(vars[i])])))
+                  )
+}
+
+missing %>% filter(!is.na(variable)) %>%
+  select(`Variable Name` = variable, 
+         `# Missing Values` = missingVals) %>%
+  arrange(-`# Missing Values`) %>% kable()
+```
+
+We see that `BATTING_HBP`, `BASERUN_CS`, `FIELDING_DP`, and `BASERUN_SB` have the most missing values. None of those variables were well correlated with our outcome variable so maybe it is ok to leave them alone.
+
+Next we have `BATTING_SO` and `PITCHING_SO`. These variables had correlations close to 0.22. So, if we plan on using those in our model, we may want to exclude those cases where they are missing (which leaves us approximately `r training %>% filter(!is.na(BATTING_SO),!is.na(PITCHING_SO)) %>% nrow %>%
+comma()` complete observations).
