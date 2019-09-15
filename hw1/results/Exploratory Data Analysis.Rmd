@@ -33,6 +33,8 @@ opts_knit$set(width=75)
 training <- read.csv("../data/moneyball-training-data.csv")
 ```
 
+
+
 ## Exploration
 
 ### Summary Statistics
@@ -51,7 +53,7 @@ training %>%
 
 The following density plots show the spread of the data.  The red verticle line is the mean and the blue verticle line is the median.  The scatter plot shows the relationship between wins and the variable
 
-```{r}
+```{r plot_me}
 plot_me <- function(d, title, xlab, ylab){
   nas <- d %>% filter(is.na(x)) %>% nrow()
   density <- d %>%
@@ -93,89 +95,139 @@ training %>%
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_H) %>%
-  plot_me(., "Base Hits", element_blank(), element_blank())
+  plot_me(., "Base Hits (TEAM_BATTING_H)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_2B) %>%
-  plot_me(., "Doubles", element_blank(), element_blank())
+  plot_me(., "Doubles (TEAM_BATTING_2B)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_3B) %>%
-  plot_me(., "Triples", element_blank(), element_blank())
+  plot_me(., "Triples (TEAM_BATTING_3B)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_HR) %>%
-  plot_me(., "Homeruns", element_blank(), element_blank())
+  plot_me(., "Homeruns (TEAM_BATTING_HR)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_BB) %>%
-  plot_me(., "Walks", element_blank(), element_blank())
+  plot_me(., "Walks (TEAM_BATTING_BB)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_HBP) %>%
-  plot_me(., "Batters Hit by Pitch", element_blank(), element_blank())
+  plot_me(., "Hit by Pitch (TEAM_BATTING_HBP)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING_SO) %>%
-  plot_me(., "Strikeouts", element_blank(), element_blank())
+  plot_me(., "Strikeouts (TEAM_BATTING_SO)", element_blank(), element_blank())
 ```
+
 
 ```{r}
 training %>%
   mutate(x = TEAM_BASERUN_SB) %>%
-  plot_me(., "Stolen Bases", element_blank(), element_blank())
+  plot_me(., "Stolen Bases (TEAM_BASERUN_SB)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BASERUN_CS) %>%
-  plot_me(., "Caught Stealing Bases", element_blank(), element_blank())
+  plot_me(., "Caught Stealing Bases (TEAM_BASERUN_CS)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_FIELDING_E) %>%
-  plot_me(., "Errors", element_blank(), element_blank())
+  plot_me(., "Errors (TEAM_FIELDING_E)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_FIELDING_DP) %>%
-  plot_me(., "Double Plays", element_blank(), element_blank())
+  plot_me(., "Double Plays (TEAM_FIELDING_DP)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_PITCHING_BB) %>%
-  plot_me(., "Walks Allowed", element_blank(), element_blank())
+  plot_me(., "Walks Allowed (TEAM_PITCHING_BB)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_PITCHING_H) %>%
-  plot_me(., "Hits Allowed", element_blank(), element_blank())
+  plot_me(., "Hits Allowed (TEAM_PITCHING_H)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_PITCHING_HR) %>%
-  plot_me(., "Homeruns Allowed", element_blank(), element_blank())
+  plot_me(., "Homeruns Allowed (TEAM_PITCHING_HR)", element_blank(), element_blank())
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_PITCHING_SO) %>%
-  plot_me(., "Strikouts by Pitcher", element_blank(), element_blank())
+  plot_me(., "Strikouts by Pitcher (TEAM_PITCHING_SO)", element_blank(), element_blank())
 ```
+
+## Missing Data
+
+### Batting Strike Outs
+
+To fill the missing in the missing data we will alternate between the two modes (578 and 909)
+
+```{r}
+## How did we know that? We looked at this table
+# D <- training[!is.na(training$TEAM_BATTING_SO),]$TEAM_BATTING_SO
+# data.frame(x = density(D)$x, y = density(D)$y) %>%
+#   arrange(desc(y)) %>%
+#   kable() %>%
+#   kable_styling()
+# # Modes at
+# # 578 and 909
+```
+
+```{r}
+set.seed(42)
+
+training <- training %>%
+  mutate(TEAM_BATTING_SO  = ifelse(is.na(TEAM_BATTING_SO), sample(c(578, 909), 1), TEAM_BATTING_SO))
+```
+
+## Scaled and Combined
+
+The idea behind this model is that teams that are better than the average will win more games and teams worse than the average will win less.  The way we determine if a team is better than average is by looking at how well they preform at batting, pitching, and fielding.
+
+Since there are more than one way to win a baseball game (i.e. have some power sluggers that hit home runs, vs have really good single batters.) we need to combine the various batting measures.  Now since getting a strikout at bat is bad, we need to change the sign of this variable.  That way it can be combined and will fit the better teams win more and worse teams less model.
+
+We are going to scale all variables .  That centers them at 0 and gives them a standard deviation of 1.  We can then combine almost all the batting variables into one measure (hit by pitcher is excluded).
+
+```{r}
+training <- training %>%
+  mutate(TEAM_BATTING_SO = -1 * TEAM_BATTING_SO) %>%
+  mutate_at(scale, .vars = vars(-TARGET_WINS)) %>%
+  mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO)
+```
+
+```{r}
+training %>%
+  mutate(x = TEAM_BATTING) %>%
+  plot_me(., "Batting", element_blank(), element_blank())
+fit <- lm(TARGET_WINS ~ TEAM_BATTING, training)
+summary(fit)
+```
+
+This model says that the average baseball team will win about `r round(coef(fit)[1],0)` games.  If their batting is one standard deviation better than the average they will win `r round(coef(fit)[2],0)` more games.  
