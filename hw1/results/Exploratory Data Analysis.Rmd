@@ -187,7 +187,7 @@ training %>%
 
 ### Batting Strike Outs
 
-To fill the missing in the missing data we will alternate between the two modes (578 and 909)
+To fill the missing in the `r nrow(training[is.na(training$TEAM_BATTING_SO),])` missing data we will alternate between the two modes (578 and 909)
 
 ```{r}
 ## How did we know that? We looked at this table
@@ -204,7 +204,28 @@ To fill the missing in the missing data we will alternate between the two modes 
 set.seed(42)
 
 training <- training %>%
+  mutate(TEAM_BATTING_SO_flag  = ifelse(is.na(TEAM_BATTING_SO), 1, 0)) %>%
   mutate(TEAM_BATTING_SO  = ifelse(is.na(TEAM_BATTING_SO), sample(c(578, 909), 1), TEAM_BATTING_SO))
+```
+
+### Pitching Strike Outs
+
+To fill the the `r nrow(training[is.na(training$TEAM_PITCHING_SO),])` missing values with the mean.
+
+```{r}
+training <- training %>%
+  mutate(TEAM_PITCHING_SO_flag = ifelse(is.na(TEAM_PITCHING_SO), 1, 0)) %>%
+  mutate(TEAM_PITCHING_SO = ifelse(is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO), TEAM_PITCHING_SO))
+```
+
+### Double Plays
+
+To fill the the `r nrow(training[is.na(training$TEAM_FIELDING_DP),])` missing values with the mean.
+
+```{r}
+training <- training %>%
+  mutate(TEAM_FIELDING_DP_flag = ifelse(is.na(TEAM_FIELDING_DP), 1, 0)) %>%
+  mutate(TEAM_PITCHING_SO = ifelse(is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP), TEAM_FIELDING_DP))
 ```
 
 ## Scaled and Combined
@@ -218,16 +239,37 @@ We are going to scale all variables .  That centers them at 0 and gives them a s
 ```{r}
 training <- training %>%
   mutate(TEAM_BATTING_SO = -1 * TEAM_BATTING_SO) %>%
+  mutate(TEAM_PITCHING_SO = -1 * TEAM_PITCHING_SO) %>%
+  mutate(TEAM_PITCHING_H = -1 * TEAM_PITCHING_H) %>%
+  mutate(TEAM_FIELDING_E = -1 * TEAM_FIELDING_E) %>%
   mutate_at(scale, .vars = vars(-TARGET_WINS)) %>%
-  mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO)
+  #mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO) %>%
+  mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_BATTING_SO) %>%
+  mutate(TEAM_PITCHING = TEAM_PITCHING_BB + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_SO) %>%
+  mutate(TEAM_FIELDING = TEAM_FIELDING_DP + TEAM_FIELDING_E)
 ```
 
 ```{r}
 training %>%
   mutate(x = TEAM_BATTING) %>%
   plot_me(., "Batting", element_blank(), element_blank())
-fit <- lm(TARGET_WINS ~ TEAM_BATTING, training)
+```
+
+```{r}
+training %>%
+  mutate(x = TEAM_PITCHING) %>%
+  plot_me(., "Pitching", element_blank(), element_blank())
+```
+
+```{r}
+training %>%
+  mutate(x = TEAM_FIELDING) %>%
+  plot_me(., "Fielding", element_blank(), element_blank())
+```
+
+```{r}
+fit <- lm(TARGET_WINS ~ TEAM_BATTING + TEAM_PITCHING + TEAM_FIELDING, training)
 summary(fit)
 ```
 
-This model says that the average baseball team will win about `r round(coef(fit)[1],0)` games.  If their batting is one standard deviation better than the average they will win `r round(coef(fit)[2],0)` more games.  
+This model says that the average baseball team will win about `r round(coef(fit)[1],0)` games.  If their batting is one standard deviation better than the average they will win `r round(coef(fit)[2],0)` more games.  They will win `r round(coef(fit)[3],0)` more games for if their pitching and `r round(coef(fit)[4],0)` if their fielding is better than average.
