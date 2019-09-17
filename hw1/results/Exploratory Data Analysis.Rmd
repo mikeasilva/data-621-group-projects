@@ -215,17 +215,37 @@ To fill the the `r nrow(training[is.na(training$TEAM_PITCHING_SO),])` missing va
 ```{r}
 training <- training %>%
   mutate(TEAM_PITCHING_SO_flag = ifelse(is.na(TEAM_PITCHING_SO), 1, 0)) %>%
-  mutate(TEAM_PITCHING_SO = ifelse(is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO), TEAM_PITCHING_SO))
+  mutate(TEAM_PITCHING_SO = ifelse(is.na(TEAM_PITCHING_SO), mean(TEAM_PITCHING_SO, na.rm = TRUE), TEAM_PITCHING_SO))
 ```
 
 ### Double Plays
 
-To fill the the `r nrow(training[is.na(training$TEAM_FIELDING_DP),])` missing values with the mean.
+We will fill the the `r nrow(training[is.na(training$TEAM_FIELDING_DP),])` missing values with the mean.
 
 ```{r}
 training <- training %>%
   mutate(TEAM_FIELDING_DP_flag = ifelse(is.na(TEAM_FIELDING_DP), 1, 0)) %>%
-  mutate(TEAM_PITCHING_SO = ifelse(is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP), TEAM_FIELDING_DP))
+  mutate(TEAM_FIELDING_DP = ifelse(is.na(TEAM_FIELDING_DP), mean(TEAM_FIELDING_DP, na.rm = TRUE), TEAM_FIELDING_DP))
+```
+
+### Stolen Bases
+
+Wee will fill the the `r nrow(training[is.na(training$TEAM_BASERUN_SB),])` missing values with the mean.
+
+```{r}
+training <- training %>%
+  mutate(TEAM_BASERUN_SB_flag = ifelse(is.na(TEAM_BASERUN_SB), 1, 0)) %>%
+  mutate(TEAM_BASERUN_SB = ifelse(is.na(TEAM_BASERUN_SB), mean(TEAM_BASERUN_SB, na.rm = TRUE), TEAM_BASERUN_SB))
+```
+
+### Caught Stealing Bases
+
+We will fill the the `r nrow(training[is.na(training$TEAM_BASERUN_CS),])` missing values with the mean.
+
+```{r}
+training <- training %>%
+  mutate(TEAM_BASERUN_CS_flag = ifelse(is.na(TEAM_BASERUN_CS), 1, 0)) %>%
+  mutate(TEAM_BASERUN_CS = ifelse(is.na(TEAM_BASERUN_CS), mean(TEAM_BASERUN_CS, na.rm = TRUE), TEAM_BASERUN_CS))
 ```
 
 ## Scaled and Combined
@@ -239,13 +259,15 @@ We are going to scale all variables .  That centers them at 0 and gives them a s
 ```{r}
 training <- training %>%
   mutate(TEAM_BATTING_SO = -1 * TEAM_BATTING_SO) %>%
-  mutate(TEAM_PITCHING_SO = -1 * TEAM_PITCHING_SO) %>%
-  mutate(TEAM_PITCHING_H = -1 * TEAM_PITCHING_H) %>%
-  mutate(TEAM_FIELDING_E = -1 * TEAM_FIELDING_E) %>%
+  #mutate(TEAM_PITCHING_SO = -1 * TEAM_PITCHING_SO) %>%
+  #mutate(TEAM_PITCHING_H = -1 * TEAM_PITCHING_H) %>%
+  #mutate(TEAM_BASERUN_CS = -1 * TEAM_BASERUN_CS) %>%
+  #mutate(TEAM_FIELDING_E = -1 * TEAM_FIELDING_E) %>%
   mutate_at(scale, .vars = vars(-TARGET_WINS)) %>%
-  #mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO) %>%
-  mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_BATTING_SO) %>%
+  #mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_BATTING_SO, TEAM_BATTING_HR) %>%
+  mutate(TEAM_BATTING = TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO) %>%
   mutate(TEAM_PITCHING = TEAM_PITCHING_BB + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_SO) %>%
+  mutate(TEAM_BASERUN = TEAM_BASERUN_SB + TEAM_BASERUN_CS) %>%
   mutate(TEAM_FIELDING = TEAM_FIELDING_DP + TEAM_FIELDING_E)
 ```
 
@@ -253,6 +275,12 @@ training <- training %>%
 training %>%
   mutate(x = TEAM_BATTING) %>%
   plot_me(., "Batting", element_blank(), element_blank())
+```
+
+```{r}
+training %>%
+  mutate(x = TEAM_BASERUN) %>%
+  plot_me(., "Stealing Bases", element_blank(), element_blank())
 ```
 
 ```{r}
@@ -268,8 +296,8 @@ training %>%
 ```
 
 ```{r}
-fit <- lm(TARGET_WINS ~ TEAM_BATTING + TEAM_PITCHING + TEAM_FIELDING, training)
+fit <- lm(TARGET_WINS ~ TEAM_BATTING, training)
 summary(fit)
 ```
 
-This model says that the average baseball team will win about `r round(coef(fit)[1],0)` games.  If their batting is one standard deviation better than the average they will win `r round(coef(fit)[2],0)` more games.  They will win `r round(coef(fit)[3],0)` more games for if their pitching and `r round(coef(fit)[4],0)` if their fielding is better than average.
+This model says that the average baseball team will win about `r round(coef(fit)[1],0)` games.  If their batting is one standard deviation better than the average they will win `r round(coef(fit)[2],0)` more games.  They will win `r round(coef(fit)[3],0)` more games for if their pitching is better than average.
