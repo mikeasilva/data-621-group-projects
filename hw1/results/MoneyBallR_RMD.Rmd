@@ -1,0 +1,235 @@
+---
+title: "MoneyBallR_RMD"
+author: "Corey Arnouts"
+date: "9/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Decision Trees to Find Variable Interactions
+```{r}
+library(tidyverse)
+
+df_train <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-training-data.csv")
+
+df_test <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-evaluation-data.csv")
+
+
+source("https://raw.githubusercontent.com/crarnouts/Data_605_Final/master/RandomForestNulls_testing.R")
+
+colnames(df_train) <- sub("TEAM_", "", colnames(df_train))
+
+colnames(df_test) <- sub("TEAM_", "", colnames(df_test))
+
+df_test <- RF_with_Nulls(df_train,df_test,"TARGET_WINS",.5,10,25,.02,5,1)
+
+```
+
+# See if we can impute some misssing values Using a Random Forest
+```{r}
+library(randomForest)
+df_train.na <- df_train
+df_train.imputed <-rfImpute(TARGET_WINS ~.,df_train.na)
+
+str(df_train)
+str(df_train.imputed)
+
+df_train <- df_train.imputed
+```
+
+
+
+#Correlation Matrix
+```{r}
+
+na_count <-sapply(df_train, function(y) sum(length(which(is.na(y)))))
+
+na_count <- data.frame(na_count)
+
+
+library(corrplot)
+
+M <- cor(df_train)
+corrplot(M, method = "circle") #plot matrix
+
+
+library("PerformanceAnalytics")
+
+
+chart.Correlation(df_train, histogram=TRUE, pch=19)
+```
+
+
+
+#Principal Components
+```{r}
+
+################################################################################
+##################### Same thing but with MoneyBallR data ######################
+################################################################################
+
+df_train.pca <- prcomp(df_train[,c(3:17)], center = TRUE,scale. = TRUE) #exclude the categorical variables
+
+df_train.target <- 
+
+summary(df_train.pca)
+
+str(df_train.pca)
+
+library(devtools)
+install_github("vqv/ggbiplot")
+
+library(ggbiplot)
+
+ggbiplot(df_train.pca) + geom_point(size = .01)+ xlim(-8,8)+ ylim(-10,5)
+
+
+ggbiplot(mtcars.pca,ellipse=TRUE,choices=c(3,4),   labels=rownames(mtcars), groups=mtcars.country) # take a look at some of the other principal components
+
+
+library(tidyverse)
+
+test <- df_train %>% dplyr::select(BATTING_H)
+
+df_train.pca <- df_train %>% dplyr::select(PITCHING_HR,BATTING_HR) %>%  prcomp(center = TRUE,scale. = TRUE) #exclude the categorical variables
+
+
+summary(df_train.pca)
+
+str(df_train.pca)
+
+library(devtools)
+install_github("vqv/ggbiplot")
+
+library(ggbiplot)
+
+ggbiplot(df_train.pca) + geom_point(size = .01)+ xlim(-8,8)+ ylim(-10,5)
+
+ggplot(df_train, aes(x=PITCHING_HR, y=BATTING_HR, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+scale_colour_gradient(low="cyan", high="firebrick1")     # Use hollow circles
+
+
+df_train$HR_RATIO <- df_train$BATTING_HR/df_train$PITCHING_HR
+
+library(plotly)
+ggplotly(ggplot(df_train, aes(x=PITCHING_HR, y=HR_RATIO, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+scale_colour_gradient(low="cyan", high="firebrick1")     # Use hollow circles
+)
+
+
+mid <- mean(df_train$TARGET_WINS)
+
+ggplotly(ggplot(df_train, aes(x=BATTING_H, y=PITCHING_H, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+ scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
+                            high = "red", space = "Lab" )     # Use hollow circles
+)
+
+## look at batting hits to pitching hits ratio
+df_train$Hitting_Ratio <- df_train$BATTING_H/df_train$PITCHING_H
+
+ggplotly(ggplot(df_train, aes(x=BATTING_H, y=Hitting_Ratio, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+ scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
+                            high = "red", space = "Lab" )     # Use hollow circles
+)
+
+for (i in 1:ncol(df_train)){
+ggplotly(ggplot(df_train, aes(x=df_train[[i]], y=TARGET_WINS, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+ scale_color_gradient2(low = "blue",
+                            high = "red", space = "Lab" )     # Use hollow circles
+)
+
+}
+
+
+ggplotly(ggplot(df_train, aes(x=BATTING_2B , y=BATTING_H, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+ scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
+                            high = "red", space = "Lab" ) )
+
+```
+
+
+#Predict Hits Batted by Hits Pitched and then see what the difference is so like hits batted above expectation
+And then use this as a predictive feature
+
+```{r}
+#First Fit Target Wins just by Batted_H and Pitched_H
+
+#model <- lm(TARGET_WINS ~ BATTING_H + PITCHING_H, data = df_train)
+
+#df_train$Prediction <- predict(model,df_train)
+
+
+#summary(model)
+## .45 correlation 
+##try on it on out of sample
+
+### Add my meta features ###
+model <- lm(BATTING_H ~ PITCHING_H, data = df_train)
+
+df_train$BATTING_H_EXP <- predict(model,df_train)
+df_train$BATTING_H_ABV_EXP <- df_train$BATTING_H/df_train$BATTING_H_EXP
+
+train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
+train_data<- df_train[ train.index1,]
+hold_out_data  <- df_train[-train.index1,]
+
+model <- lm(TARGET_WINS ~ BATTING_H + PITCHING_H, data = train_data)
+
+hold_out_data$Prediction <- predict(model,hold_out_data)
+
+cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
+
+summary(model)
+
+
+
+############# FITTING THE MODEL WITH EVERYTHING ###################
+############# BASELINE ############################################
+df_train$INDEX <- NULL
+
+train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
+train_data<- df_train[ train.index1,]
+hold_out_data  <- df_train[-train.index1,]
+
+model <- lm(TARGET_WINS ~ ., data = train_data)
+
+hold_out_data$Prediction <- predict(model,hold_out_data)
+
+cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
+
+summary(model)
+
+ggplotly(ggplot(hold_out_data, aes(x=Prediction, y=TARGET_WINS, colour = TARGET_WINS)) +
+    geom_point(shape=1) + 
+ scale_color_gradient2(low = "blue",
+                            high = "red", space = "Lab" )     # Use hollow circles
+)
+
+
+
+
+
+toselect.x <- summary(model)$coeff[-1,4] < 0.05 #
+  
+relevant.x <- names(toselect.x)[toselect.x == TRUE] 
+  
+sig.formula <- as.formula(paste("TARGET_WINS ~",paste(relevant.x, collapse= "+")))
+  
+model <- lm(formula = sig.formula, data = train_data)
+
+summary(model)
+
+
+```
+
+
+##Look at Variance Inflation Factors 
