@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment = NA)
 ```
 
 ```{r}
+set.seed(1234)
 library(devtools)
 install_github("vqv/ggbiplot")
 library(ggbiplot)
@@ -251,6 +252,7 @@ cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
 
 # Stepwise Regression
 ```{r}
+set.seed(1234)
 train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
 train_data<- df_train[ train.index1,]
 hold_out_data  <- df_train[-train.index1,]
