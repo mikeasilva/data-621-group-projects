@@ -22,25 +22,98 @@ library(ggbiplot)
 ```
 
 
-# Decision Trees to Find Variable Interactions
+#Load in the Data
 ```{r}
 library(tidyverse)
+library(tidyverse)
+library(kableExtra)
+library(corrplot)
+library(caret)
+library(DMwR)
 df_train <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-training-data.csv")
+df_train$INDEX <- NULL
 df_test <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-evaluation-data.csv")
+df_test$INDEX <- NULL
 source("https://raw.githubusercontent.com/crarnouts/Data_605_Final/master/RandomForestNulls_testing.R")
 colnames(df_train) <- sub("TEAM_", "", colnames(df_train))
 colnames(df_test) <- sub("TEAM_", "", colnames(df_test))
-df_test <- RF_with_Nulls(df_train,df_test,"TARGET_WINS",.5,10,25,.02,5,1)
+
 ```
+
+#Missing Variables 
+```{r}
+df_train %>% 
+  gather(variable, value) %>%
+  filter(is.na(value)) %>%
+  group_by(variable) %>%
+  tally() %>%
+  mutate(percent = n / nrow(df_train) * 100) %>%
+  mutate(percent = paste0(round(percent, ifelse(percent < 10, 1, 0)), "%")) %>%
+  arrange(desc(n)) %>%
+  rename(`Variable Missing Data` = variable,
+         `Number of Records` = n,
+         `Share of Total` = percent) %>%
+  kable() %>%
+  kable_styling()
+```
+
+
+
 
 # See if we can impute some misssing values Using a Random Forest
 ```{r}
-library(randomForest)
-df_train.na <- df_train
-df_train.imputed <-rfImpute(TARGET_WINS ~.,df_train.na)
-str(df_train)
-str(df_train.imputed)
-df_train <- df_train.imputed
+
+
+df_train[which(df_train$TARGET_WINS == 0), "TARGET_WINS"] <- round(mean(df_train$TARGET_WINS), 0)
+
+# Change 0's to NA so they too can be imputed
+df_train <- df_train %>%
+  mutate(BATTING_SO = ifelse(BATTING_SO == 0, NA, BATTING_SO))
+knn <- df_train %>% knnImputation()
+impute_me <- is.na(df_train$BATTING_SO)
+df_train[impute_me,"BATTING_SO"] <- knn[impute_me,"BATTING_SO"] 
+
+impute_me <- is.na(df_train$BASERUN_SB)
+df_train[impute_me,"BASERUN_SB"] <- knn[impute_me,"BASERUN_SB"] 
+
+impute_me <- is.na(df_train$BASERUN_CS)
+df_train[impute_me,"BASERUN_CS"] <- knn[impute_me,"BASERUN_CS"]
+
+impute_me <- is.na(df_train$BATTING_HBP)
+df_train[impute_me,"BATTING_HBP"] <- knn[impute_me,"BATTING_HBP"] 
+
+df_train[which(df_train$PITCHING_SO > 5346),"PITCHING_SO"] <- NA
+impute_me <- is.na(df_train$PITCHING_SO)
+df_train[impute_me,"PITCHING_SO"] <- knn[impute_me,"PITCHING_SO"]
+
+impute_me <- is.na(df_train$FIELDING_DP)
+df_train[impute_me,"FIELDING_DP"] <- knn[impute_me,"FIELDING_DP"] 
+
+# Change 0's to NA so they too can be imputed
+df_test <- df_test %>%
+  mutate(BATTING_SO = ifelse(BATTING_SO == 0, NA, BATTING_SO))
+knn <- df_test %>% knnImputation()
+impute_me <- is.na(df_test$BATTING_SO)
+df_test[impute_me,"BATTING_SO"] <- knn[impute_me,"BATTING_SO"] 
+
+impute_me <- is.na(df_test$BASERUN_SB)
+df_test[impute_me,"BASERUN_SB"] <- knn[impute_me,"BASERUN_SB"] 
+
+impute_me <- is.na(df_test$BASERUN_CS)
+df_test[impute_me,"BASERUN_CS"] <- knn[impute_me,"BASERUN_CS"]
+
+impute_me <- is.na(df_test$BATTING_HBP)
+df_test[impute_me,"BATTING_HBP"] <- knn[impute_me,"BATTING_HBP"] 
+
+df_test[which(df_test$PITCHING_SO > 5346),"PITCHING_SO"] <- NA
+impute_me <- is.na(df_test$PITCHING_SO)
+df_test[impute_me,"PITCHING_SO"] <- knn[impute_me,"PITCHING_SO"]
+
+impute_me <- is.na(df_test$FIELDING_DP)
+df_test[impute_me,"FIELDING_DP"] <- knn[impute_me,"FIELDING_DP"] 
+
+
+
 ```
 
 
@@ -56,150 +129,51 @@ library("PerformanceAnalytics")
 chart.Correlation(df_train, histogram=TRUE, pch=19)
 ```
 
+#Feature Creation and Data Cleaning
 
-
-#Principal Components
 ```{r}
-#PCA Analysis in R DataCamp Article
-library(tidyverse)
-mtcars.pca <- prcomp(mtcars[,c(1:7,10,11)], center = TRUE,scale. = TRUE) #exclude the categorical variables
-mtcars <- mtcars 
-summary(mtcars.pca)
-str(mtcars.pca)
-library(devtools)
-install_github("vqv/ggbiplot")
-library(ggbiplot)
-ggbiplot(mtcars.pca) # this shows you what attributes contribute to principal component 1 and 2
-ggbiplot(mtcars.pca, labels=rownames(mtcars)) # add in the sample information
-mtcars.country <- c(rep("Japan", 3), rep("US",4), rep("Europe", 7),rep("US",3), "Europe", rep("Japan", 3), rep("US",4), rep("Europe", 3), "US", rep("Europe", 3))
-ggbiplot(mtcars.pca,ellipse=TRUE,  labels=rownames(mtcars), groups=mtcars.country) #represent circles around groupings I want to do this binary classifiers
-ggbiplot(mtcars.pca,ellipse=TRUE,choices=c(3,4),   labels=rownames(mtcars), groups=mtcars.country) # take a look at some of the other principal components
-################################################################################
-##################### Same thing but with MoneyBallR data ######################
-################################################################################
-df_train.pca <- prcomp(df_train[,c(3:17)], center = TRUE,scale. = TRUE) #exclude the categorical variables
-df_train.target <- 
-summary(df_train.pca)
-str(df_train.pca)
-ggbiplot(df_train.pca) + geom_point(size = .01)+ xlim(-8,8)+ ylim(-10,5)
-ggbiplot(mtcars.pca,ellipse=TRUE,choices=c(3,4),   labels=rownames(mtcars), groups=mtcars.country) # take a look at some of the other principal components
-library(tidyverse)
-test <- df_train %>% dplyr::select(BATTING_H)
-df_train.pca <- df_train %>% dplyr::select(PITCHING_HR,BATTING_HR) %>%  prcomp(center = TRUE,scale. = TRUE) #exclude the categorical variables
-summary(df_train.pca)
-str(df_train.pca)
-library(devtools)
-install_github("vqv/ggbiplot")
-library(ggbiplot)
-ggbiplot(df_train.pca) + geom_point(size = .01)+ xlim(-8,8)+ ylim(-10,5)
-ggplot(df_train, aes(x=PITCHING_HR, y=BATTING_HR, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
-scale_colour_gradient(low="cyan", high="firebrick1")     # Use hollow circles
-df_train$HR_RATIO <- df_train$BATTING_HR/df_train$PITCHING_HR
-library(plotly)
-ggplotly(ggplot(df_train, aes(x=PITCHING_HR, y=HR_RATIO, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
-scale_colour_gradient(low="cyan", high="firebrick1")     # Use hollow circles
-)
-mid <- mean(df_train$TARGET_WINS)
-ggplotly(ggplot(df_train, aes(x=BATTING_H, y=PITCHING_H, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
- scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
-                            high = "red", space = "Lab" )     # Use hollow circles
-)
-## look at batting hits to pitching hits ratio
-df_train$Hitting_Ratio <- df_train$BATTING_H/df_train$PITCHING_H
-ggplotly(ggplot(df_train, aes(x=Hitting_Ratio, y=TARGET_WINS, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
- scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
-                            high = "red", space = "Lab" )     # Use hollow circles
-)
-for (i in 1:ncol(df_train)){
-ggplotly(ggplot(df_train, aes(x=df_train[[i]], y=TARGET_WINS, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
- scale_color_gradient2(low = "blue",
-                            high = "red", space = "Lab" )     # Use hollow circles
-)
-}
-ggplotly(ggplot(df_train, aes(x=BATTING_2B , y=BATTING_H, colour = TARGET_WINS)) +
-    geom_point(shape=1) + 
- scale_color_gradient2(midpoint = mid, low = "blue", mid = "white",
-                            high = "red", space = "Lab" ) )
+
+df_train$BATTING_1B <- df_train$BATTING_H - df_train$BATTING_2B - df_train$BATTING_3B - df_train$BATTING_HR
+df_test$BATTING_1B <- df_test$BATTING_H - df_test$BATTING_2B - df_test$BATTING_3B - df_test$BATTING_HR
+
 ```
 
 
-#Predict Hits Batted by Hits Pitched and then see what the difference is so like hits batted above expectation
-And then use this as a predictive feature
 
+#Look at Linear Model with all First Order Predictors
 ```{r}
-#First Fit Target Wins just by Batted_H and Pitched_H
-#model <- lm(TARGET_WINS ~ BATTING_H + PITCHING_H, data = df_train)
-#df_train$Prediction <- predict(model,df_train)
-#summary(model)
-## .45 correlation 
-##try on it on out of sample
-### Add my meta features ###
-df_train <- dplyr::filter(df_train,df_train$TARGET_WINS != 0) %>% filter(BATTING_H != 0) %>% filter(BATTING_3B != 0) %>% 
-filter(BATTING_2B != 0)%>% filter(BATTING_HR != 0)%>% filter(BATTING_BB != 0)%>% filter(BATTING_SO != 0)
-# ## Adding in some new features ##
-# df_train$Pitch_HR_under_2 <- ifelse(df_train$PITCHING_HR <2,1,0)
-# df_train$Errors_over_1215 <- ifelse(df_train$FIELDING_E > 1215,1,0)
-# df_train$HR_RATIO_2 <- (df_train$HR_RATIO)^2
-### Add in some new feature engineering 
-df_train$BATTING_1B <- df_train$BATTING_H - df_train$BATTING_2B - df_train$BATTING_3B - df_train$BATTING_HR
-df_train$BASES_ACQUIRED <- df_train$BATTING_1B + 2*df_train$BATTING_2B + 3*df_train$BATTING_3B + 4*df_train$BATTING_H + df_train$BATTING_BB
 train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
 train_data<- df_train[ train.index1,]
 hold_out_data  <- df_train[-train.index1,]
 model <- lm(TARGET_WINS ~ ., data = train_data)
 hold_out_data$Prediction <- predict(model,hold_out_data)
-cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
+oos_cor <- paste(round(cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS),digits = 2))
 summary(model)
-## Non linear benchmark random forest
-train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
-train_data<- df_train[ train.index1,]
-hold_out_data  <- df_train[-train.index1,]
-hold_out_data <- RF_with_Nulls(df_train,hold_out_data,"TARGET_WINS",.5,4,500,.005,5,10)
-cor(hold_out_data$prediction_overall,hold_out_data$TARGET_WINS)
-# 
-# 
-# ############# FITTING THE MODEL WITH EVERYTHING ###################
-# ############# BASELINE ############################################
-# df_train$INDEX <- NULL
-# train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
-# train_data<- df_train[ train.index1,]
-# hold_out_data  <- df_train[-train.index1,]
-# model <- lm(TARGET_WINS ~ ., data = train_data)
-# hold_out_data$Prediction <- predict(model,hold_out_data)
-# cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
-# summary(model)
-ggplotly(ggplot(hold_out_data, aes(x=Prediction, y=TARGET_WINS, colour = TARGET_WINS)) +
-     geom_point(shape=1) + 
-  scale_color_gradient2(low = "blue",
-                             high = "red", space = "Lab" )     # Use hollow circles
- )
-ggplot(data = hold_out_data, aes(x = Prediction, y = TARGET_WINS)) + 
+
+
+first_order_linear <- ggplot(data = hold_out_data, aes(x = Prediction, y = TARGET_WINS)) + 
   geom_point(color='blue') +
-  geom_smooth(method = "lm", se = FALSE)
-toselect.x <- summary(model)$coeff[-1,4] < 0.05 #
-relevant.x <- names(toselect.x)[toselect.x == TRUE] 
- 
-sig.formula <- as.formula(paste("TARGET_WINS ~",paste(relevant.x, collapse= "+")))
-   
-model <- lm(formula = sig.formula, data = train_data)
-summary(model)
+  geom_smooth(method = "lm", se = FALSE)+ggtitle(paste("First Order Linear Model with Out of Sample Correlation of: ",oos_cor))
+
 ```
+
+
+#Look at some Decision Trees for Variable Interactions
+```{r}
+hold_out_data <- RF_with_Nulls(train_data,hold_out_data,"TARGET_WINS",1,10,5,.01,5,1)
+```
+
 
 
 ##Look at Variance Inflation Factors 
 ```{r}
 df_train1 <- df_train
-df_train1$BATTING_H <- NULL
-df_train1$BATTING_SO<- NULL
-df_train1$HR_RATIO <- NULL
-df_train1$BASES_ACQUIRED <- NULL
-df_train1$Hitting_Ratio <- NULL
-df_train1$PITCHING_HR <- NULL
+# df_train1$BATTING_H <- NULL
+# df_train1$BATTING_SO<- NULL
+# df_train1$HR_RATIO <- NULL
+# df_train1$BASES_ACQUIRED <- NULL
+# df_train1$Hitting_Ratio <- NULL
+# df_train1$PITCHING_HR <- NULL
 for (i in 3:ncol(df_train1)){
 col <- noquote(paste(colnames(df_train1)[i],"~ ."))
 model <- lm(col, data = df_train1)
@@ -211,43 +185,14 @@ print(VIF)
 }
 ```
 
-```{r}
-train.index1 <- createDataPartition(df_train1$TARGET_WINS, p = .7, list = FALSE)
-train_data<- df_train[ train.index1,]
-hold_out_data  <- df_train[-train.index1,]
-model <- lm(TARGET_WINS ~ BATTING_BB + BATTING_SO + BASERUN_CS + PITCHING_HR + 
-    PITCHING_BB + PITCHING_SO + FIELDING_E + FIELDING_DP + I(BATTING_2B^2) + 
-    I(BATTING_3B^2) + I(BATTING_BB^2) + I(BATTING_SO^2) + I(BASERUN_SB^2) + 
-    I(BASERUN_CS^2) + I(PITCHING_H^2) + I(PITCHING_BB^2) + I(PITCHING_SO^2) + 
-    I(FIELDING_E^2) + I(FIELDING_DP^2) + I(BATTING_1B^2) + 
-    I(BATTING_2B^3) + I(BATTING_3B^3) + I(BATTING_HR^3) + I(BATTING_SO^3) + 
-    I(BASERUN_CS^3) + I(PITCHING_H^3) + I(PITCHING_BB^3) + I(FIELDING_E^3) + 
-    I(FIELDING_DP^3) + I(BATTING_2B^4) + I(BATTING_3B^4) + I(BATTING_HR^4) + 
-    I(BATTING_BB^4) + I(BATTING_SO^4) + I(BASERUN_CS^4) + I(PITCHING_H^4) + 
-    I(PITCHING_BB^4) + I(FIELDING_E^4) + I(FIELDING_DP^4) + I(BATTING_1B^4), data = df_train)
-hold_out_data$Prediction <- predict(model,hold_out_data)
-cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
-summary(model)
-```
 
-#Poisson GLMS
-```{r}
-df_train$INDEX <- NULL
-train.index1 <- createDataPartition(df_train1$TARGET_WINS, p = .7, list = FALSE)
-train_data<- df_train[ train.index1,]
-hold_out_data  <- df_train[-train.index1,]
-# Poisson Regression
-# where count is a count and
-# x1-x3 are continuous predictors
-fit <- glm(TARGET_WINS ~ ., data = train_data, family=poisson())
-summary(fit)
-hold_out_data$Prediction <- predict(fit,hold_out_data)
-cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
-```
+
 
 
 #Stepwise Regression
 ```{r}
+
+
 train.index1 <- createDataPartition(df_train$TARGET_WINS, p = .7, list = FALSE)
 train_data<- df_train[ train.index1,]
 hold_out_data  <- df_train[-train.index1,]
@@ -256,13 +201,38 @@ hold_out_data  <- df_train[-train.index1,]
 full_formula <- "TARGET_WINS ~ BATTING_2B + BATTING_3B + BATTING_HR + BATTING_BB + BATTING_SO + BASERUN_SB + BASERUN_CS + PITCHING_H + PITCHING_HR + PITCHING_BB + PITCHING_SO + FIELDING_E + FIELDING_DP + BATTING_1B + I(BATTING_2B^2) + I(BATTING_3B^2) + I(BATTING_HR^2) + I(BATTING_BB^2) + I(BATTING_SO^2) + I(BASERUN_SB^2) + I(BASERUN_CS^2) + I(PITCHING_H^2) + I(PITCHING_HR^2) + I(PITCHING_BB^2) + I(PITCHING_SO^2) + I(FIELDING_E^2) + I(FIELDING_DP^2) + I(BATTING_1B^2) + I(BATTING_2B^3) + I(BATTING_3B^3) + I(BATTING_HR^3) + I(BATTING_BB^3) + I(BATTING_SO^3) + I(BASERUN_SB^3) + I(BASERUN_CS^3) + I(PITCHING_H^3) + I(PITCHING_HR^3) + I(PITCHING_BB^3) + I(PITCHING_SO^3) + I(FIELDING_E^3) + I(FIELDING_DP^3) + I(BATTING_1B^3) + I(BATTING_2B^4) + I(BATTING_3B^4) + I(BATTING_HR^4) + I(BATTING_BB^4) + I(BATTING_SO^4) + I(BASERUN_SB^4) + I(BASERUN_CS^4) + I(PITCHING_H^4) + I(PITCHING_HR^4) + I(PITCHING_BB^4) + I(PITCHING_SO^4) + I(FIELDING_E^4) + I(FIELDING_DP^4) + I(BATTING_1B^4)"
 
 full_model <- lm(full_formula, train_data)
-step_back_model <- stepAIC(full_model, direction="backward", trsace = F)
+step_back_model <- stepAIC(full_model, direction="backward", trace = F)
 poly.call <- summary(step_back_model)$call
 final_model <- lm(poly.call[2], train_data)
 summary(final_model)
 
-hold_out_data$Prediction <- predict(final_model,hold_out_data)
-cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
 
 ```
+
+#Model Results on the Hold Out Dataset
+```{r}
+
+
+hold_out_data$Prediction <- predict(final_model,hold_out_data)
+
+hold_out_data <- hold_out_data %>% filter(Prediction < 182)%>% filter(Prediction > 0)
+
+cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS)
+
+
+oos_cor <- paste(round(cor(hold_out_data$Prediction,hold_out_data$TARGET_WINS),digits = 2))
+
+ggplotly(ggplot(hold_out_data, aes(x=Prediction, y=TARGET_WINS, colour = TARGET_WINS)) +
+     geom_point(shape=1) + 
+  scale_color_gradient2(low = "blue",
+                             high = "red", space = "Lab" ) +
+  geom_smooth(method = "lm", se = FALSE, colour = "orange")+ggtitle(paste("Polynomial Stepwise Model with Out of Sample Correlation of: ",oos_cor))    # Use hollow circles
+ )
+
+ggplotly(first_order_linear)
+```
+
+
+
+
 
