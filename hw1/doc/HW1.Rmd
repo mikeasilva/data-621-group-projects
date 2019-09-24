@@ -16,6 +16,7 @@ library(tidyverse)
 library(kableExtra)
 library(corrplot)
 library(caret)
+library(DMwR)
 ```
 
 ## Introduction
@@ -262,10 +263,6 @@ training %>%
 
 Four balls will walk a batter in modern baseball, however that wasn't always the case. A century or more ago (within the date range of this data set) walks took as many as 9 balls to happen[^1]. Knowing this, and looking at the left-tail of the values above, it is not unreasonable that there might be a season with no walks. Like triples above, leaving the one zero data point in is unlikely to adversely impact any regression, since there are valid values nearby.
 
-
-
-
-
 #### TEAM_BATTING_SO
 
 Here we saw some NA values, `r training %>% filter(is.na(TEAM_BATTING_SO)) %>% nrow(.)` of them to be specific. Plus we have `r training %>% filter(TEAM_BATTING_SO == 0) %>% nrow(.)` zero values as well.
@@ -292,8 +289,11 @@ We can impute a value for this variable by looking at it's nearest neighbors (ba
 # Change 0's to NA so they too can be imputed
 training <- training %>%
   mutate(TEAM_BATTING_SO = ifelse(TEAM_BATTING_SO == 0, NA, TEAM_BATTING_SO))
-```
 
+knn <- training %>% knnImputation()
+impute_me <- is.na(training$TEAM_BATTING_SO)
+training[impute_me,"TEAM_BATTING_SO"] <- knn[impute_me,"TEAM_BATTING_SO"] 
+```
 
 Looking at our distribution, the shape hasn't changed radically and the means and medians ony shifted slightly:
 
@@ -329,7 +329,8 @@ training %>%
 The zeroes may be legitimate here so we will leave them alone. For the NAs, we can use the same KNN imputation we used above for strikeouts
 
 ```{r}
-#cleaned$TEAM_BASERUN_SB <- temp$TEAM_BASERUN_SB
+impute_me <- is.na(training$TEAM_BASERUN_SB)
+training[impute_me,"TEAM_BASERUN_SB"] <- knn[impute_me,"TEAM_BASERUN_SB"] 
 
 training %>% 
   ggplot(aes(TEAM_BASERUN_SB)) + 
@@ -364,7 +365,8 @@ training %>%
 Despite the high number of missing values (and a potential for increased error), we will use the KNN imputed values.
 
 ```{r}
-#cleaned$TEAM_BASERUN_CS <- temp$TEAM_BASERUN_CS
+impute_me <- is.na(training$TEAM_BASERUN_CS)
+training[impute_me,"TEAM_BASERUN_CS"] <- knn[impute_me,"TEAM_BASERUN_CS"] 
 ```
 
 #### TEAM_BATTING_HBP
@@ -442,7 +444,8 @@ training %>%
 We can use the KNN imputation to help with the NA values
 
 ```{r}
-#cleaned$TEAM_PITCHING_SO <- temp$TEAM_PITCHING_SO
+impute_me <- is.na(training$TEAM_PITCHING_SO)
+training[impute_me,"TEAM_PITCHING_SO"] <- knn[impute_me,"TEAM_PITCHING_SO"] 
 ```
 
 With the NA's fixed, we can turn our attention now to the extreme values.
@@ -454,10 +457,8 @@ Games can go beyond 9 innings, but even if every game in a season was as long as
 We'll make a high-yet-reasonable assumption of a mean 11 innings per game, and call anything more than 5,346 strikeouts an invalid data point by setting them to NA so they will be disregarded in any modeling.
 
 ```{r}
-#cleaned[which(cleaned$TEAM_PITCHING_SO > 5346),"TEAM_PITCHING_SO"] <- NA
-```
+training[which(training$TEAM_PITCHING_SO > 5346),"TEAM_PITCHING_SO"] <- NA
 
-```{r}
 training %>% 
   ggplot(aes(TEAM_PITCHING_SO)) + 
   geom_histogram(bins = 50) +
@@ -489,68 +490,11 @@ training %>%
 Again, we use the KNN imputation from earlier to fill in NAs with imputed values.
 
 ```{r}
-#cleaned$TEAM_FIELDING_DP <- temp$TEAM_FIELDING_DP
-```
-
-
-
-
-
-```{r}
-#training  <- training %>%
-#  na.omit()
-  #select(-TEAM_BATTING_HBP)
-# set.seed(1)
-# fix_missing_vals <- training %>%
-#   na.omit() %>%
-#   preProcess(., "knnImpute")
- 
-# training_mean <- mean(training$TARGET_WINS)
-# 
-# training <- predict(fix_missing_vals, training)
-# 
-# training$TEAM_FIP <- (training$TEAM_PITCHING_HR * 13) + (3 * training$TEAM_PITCHING_BB) - (2 * training$TEAM_PITCHING_SO)
-# 
-# pp <- preProcess(training, method = c("BoxCox", "center", "scale"))
-# training <- predict(pp, training)
-```
-
-```{r eval=FALSE, echo=FALSE}
-library(rpart)
-library(rpart.plot)
-m1 <- rpart(TARGET_WINS ~ ., data = training, method = "anova")
-rpart.plot(m1)
-plotcp(m1)
-```
-
-```{r eval=FALSE, echo=FALSE}
-# Specify 10-fold cross validation
-ctrl <- trainControl(method = "cv",  number = 10) 
-
-# CV bagged model
-bagged_cv <- training %>%
-  na.omit() %>%
-  train(
-    TARGET_WINS ~ ., 
-    data = .,
-    method = "treebag",
-    trControl = ctrl,
-    importance = TRUE
-  )
-
-# assess results
-bagged_cv
-
-plot(varImp(bagged_cv)) 
-
-imp <- varImp(bagged_cv)$importance %>% 
-  data.frame() %>%
-  rownames_to_column()
+impute_me <- is.na(training$TEAM_FIELDING_DP)
+training[impute_me,"TEAM_FIELDING_DP"] <- knn[impute_me,"TEAM_FIELDING_DP"] 
 ```
 
 ## Model Building
-
-## Model Selection
 
 ```{r}
 set.seed(42)
@@ -559,6 +503,8 @@ train_index <- createDataPartition(training$TARGET_WINS, p = .8, list = FALSE, t
 moneyball_train <- training[train_index,]
 moneyball_test <- training[-train_index,]
 ```
+
+## Model Selection
 
 ```{r}
 fit <- lm(TARGET_WINS ~ ., moneyball_train)
@@ -571,7 +517,7 @@ moneyball_test <- moneyball_test %>%
   mutate(error = TARGET_WINS - y_hat) %>%
   mutate(squared_error = error ^ 2)
 
-ggplot(moneyball_test, aes(error))+
+ggplot(moneyball_test, aes(error)) +
   geom_histogram(bins = 50)
 
 summary(moneyball_test$squared_error)
