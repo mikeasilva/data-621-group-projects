@@ -385,7 +385,27 @@ training %>%
        caption = "* Red line is the mean value and green is the median")
 ```
 
-We *could* make an assumption that these are all cases where there were no batters hit by a pitch, but that seems ill-advised given the distribution above. In this case, we might be wise to leave them as NA for now.
+We will fill in the values with KNN
+
+
+```{r}
+impute_me <- is.na(training$TEAM_BATTING_HBP)
+training[impute_me,"TEAM_BATTING_HBP"] <- knn[impute_me,"TEAM_BATTING_HBP"] 
+```
+
+
+```{r}
+training %>% 
+  ggplot(aes(TEAM_BATTING_HBP)) + 
+  geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept = mean(TEAM_BATTING_HBP, na.rm = T)), col = "red", lty = 2) +
+  geom_vline(aes(xintercept = median(TEAM_BATTING_HBP, na.rm = T)), col = "green", lty = 2) +
+  labs(x = element_blank(),
+       y = "Count",
+       title = "Distribution of Being Hit By a Pitch",
+       subtitle = "After Imputation",
+       caption = "* Red line is the mean value and green is the median")
+```
 
 #### TEAM_PITCHING_HR
 
@@ -441,23 +461,19 @@ training %>%
        caption = "* Red line is the mean value and green is the median")
 ```
 
-We can use the KNN imputation to help with the NA values
-
-```{r}
-impute_me <- is.na(training$TEAM_PITCHING_SO)
-training[impute_me,"TEAM_PITCHING_SO"] <- knn[impute_me,"TEAM_PITCHING_SO"] 
-```
-
-With the NA's fixed, we can turn our attention now to the extreme values.
+We can use the KNN imputation to help with the NA values.  We can turn our attention now to the extreme values.
 
 The extreme values need to be handled. First, a typical game will be 9 innings in length, and in each inning you can only pitch 3 strikeouts (because then your part of the inning is over). Those 27 potential strikeouts multiplied by 162 games means an upper limit near 4,374 a season.
 
 Games can go beyond 9 innings, but even if every game in a season was as long as the longest ever MLB game (26 innings) you can only have 12,636 strikeouts. So, the max value of `r max(training$TEAM_PITCHING_SO,na.rm=T)` is invalid.
 
-We'll make a high-yet-reasonable assumption of a mean 11 innings per game, and call anything more than 5,346 strikeouts an invalid data point by setting them to NA so they will be disregarded in any modeling.
+We'll make a high-yet-reasonable assumption of a mean 11 innings per game, and call anything more than 5,346 strikeouts an invalid data point by setting them to NA so they will be imputed prior to modeling.
 
 ```{r}
 training[which(training$TEAM_PITCHING_SO > 5346),"TEAM_PITCHING_SO"] <- NA
+
+impute_me <- is.na(training$TEAM_PITCHING_SO)
+training[impute_me,"TEAM_PITCHING_SO"] <- knn[impute_me,"TEAM_PITCHING_SO"]
 
 training %>% 
   ggplot(aes(TEAM_PITCHING_SO)) + 
@@ -504,12 +520,29 @@ moneyball_train <- training[train_index,]
 moneyball_test <- training[-train_index,]
 ```
 
-## Model Selection
+### Kitchen Sink Model
+
+We will begin with a "kitchen sink" model.
 
 ```{r}
 fit <- lm(TARGET_WINS ~ ., moneyball_train)
 summary(fit)
 ```
+
+### Select Variables
+
+We will select a subset of variables.
+
+```{r}
+fit_final <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_BB + TEAM_BATTING_HBP + TEAM_FIELDING_E, data = moneyball_train)
+summary(fit_final)
+```
+
+## Model Selection
+
+In order to select which model is the "best" we will test it against a test set.  We will examine the difference between the predicted and actual.
+
+### Kitchen Sink Selection
 
 ```{r}
 moneyball_test$y_hat <- predict(fit, moneyball_test)
@@ -520,7 +553,21 @@ moneyball_test <- moneyball_test %>%
 ggplot(moneyball_test, aes(error)) +
   geom_histogram(bins = 50)
 
-summary(moneyball_test$squared_error)
+summary(moneyball_test$error)
+```
+
+### Select Model
+
+```{r}
+moneyball_test$y_hat <- predict(fit_final, moneyball_test)
+moneyball_test <- moneyball_test %>%
+  mutate(error = TARGET_WINS - y_hat) %>%
+  mutate(squared_error = error ^ 2)
+
+ggplot(moneyball_test, aes(error)) +
+  geom_histogram(bins = 50)
+
+summary(moneyball_test$error)
 ```
 
 ## Appendix
