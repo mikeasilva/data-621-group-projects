@@ -23,10 +23,10 @@ library(DMwR)
 
 ```{r read_data, echo=FALSE}
 # Read in the training data
-training <- read.csv("../data/moneyball-training-data.csv") %>%
+training <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-training-data.csv") %>%
   select(-INDEX) # Dropping meaningless index
 # Read in the evaluation data
-evaluation <- read.csv("../data/moneyball-evaluation-data.csv")
+evaluation <- read.csv("https://raw.githubusercontent.com/crarnouts/Data_621/master/moneyball-evaluation-data.csv")
 ```
 
 We have been given a dataset with `r nrow(training)` records summarizing a major league baseball team's season. The records span 1871 to 2006 inclusive.  All statistics have been adjusted to match the performance of a 162 game season.  The objective is to build a linear regression model to predict the number of wins for a team.
@@ -61,7 +61,6 @@ quick_summary <- function(df){
     kable() %>%
     kable_styling()
 }
-
 quick_summary(training)
 ```
 
@@ -429,7 +428,6 @@ remove_bad_values <- function(df){
   df %>%
     select(-TEAM_BATTING_HBP)
 }
-
 training <- remove_bad_values(training)
 evaluation <- remove_bad_values(evaluation)
 ```
@@ -437,7 +435,6 @@ evaluation <- remove_bad_values(evaluation)
 ```{r}
 set.seed(42)
 knn <- training %>% knnImputation()
-
 impute_values <- function(df, knn){
   impute_me <- is.na(df$TEAM_BATTING_SO)
   df[impute_me,"TEAM_BATTING_SO"] <- knn[impute_me,"TEAM_BATTING_SO"] 
@@ -451,7 +448,6 @@ impute_values <- function(df, knn){
   df[impute_me,"TEAM_FIELDING_DP"] <- knn[impute_me,"TEAM_FIELDING_DP"]
   return(df)
 }
-
 training <- impute_values(training, knn)
 ```
 
@@ -464,7 +460,6 @@ add_features <- function(df){
   df %>%
     mutate(TEAM_BATTING_1B = TEAM_BATTING_H - TEAM_BATTING_2B - TEAM_BATTING_3B - TEAM_BATTING_HR)
 }
-
 training <- add_features(training)
 evaluation <- add_features(evaluation)
 ```
@@ -489,7 +484,6 @@ quick_summary <- function(df){
     kable() %>%
     kable_styling()
 }
-
 quick_summary(training)
 ```
 
@@ -500,7 +494,6 @@ We will divide the data into training and test sets using a 70/30 split.  We wil
 ```{r}
 set.seed(42)
 train_index <- createDataPartition(training$TARGET_WINS, p = .7, list = FALSE, times = 1)
-
 moneyball_train <- training[train_index,]
 moneyball_test <- training[-train_index,]
 ```
@@ -533,7 +526,6 @@ For the third model we will use a stepwise regression method using a backwards e
 
 ```{r}
 full_formula <- "TARGET_WINS ~ TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO + TEAM_BASERUN_SB + TEAM_BASERUN_CS + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_BB + TEAM_PITCHING_SO + TEAM_FIELDING_E + TEAM_FIELDING_DP + TEAM_BATTING_1B + I(TEAM_BATTING_2B^2) + I(TEAM_BATTING_3B^2) + I(TEAM_BATTING_HR^2) + I(TEAM_BATTING_BB^2) + I(TEAM_BATTING_SO^2) + I(TEAM_BASERUN_SB^2) + I(TEAM_BASERUN_CS^2) + I(TEAM_PITCHING_H^2) + I(TEAM_PITCHING_HR^2) + I(TEAM_PITCHING_BB^2) + I(TEAM_PITCHING_SO^2) + I(TEAM_FIELDING_E^2) + I(TEAM_FIELDING_DP^2) + I(TEAM_BATTING_1B^2) + I(TEAM_BATTING_2B^3) + I(TEAM_BATTING_3B^3) + I(TEAM_BATTING_HR^3) + I(TEAM_BATTING_BB^3) + I(TEAM_BATTING_SO^3) + I(TEAM_BASERUN_SB^3) + I(TEAM_BASERUN_CS^3) + I(TEAM_PITCHING_H^3) + I(TEAM_PITCHING_HR^3) + I(TEAM_PITCHING_BB^3) + I(TEAM_PITCHING_SO^3) + I(TEAM_FIELDING_E^3) + I(TEAM_FIELDING_DP^3) + I(TEAM_BATTING_1B^3) + I(TEAM_BATTING_2B^4) + I(TEAM_BATTING_3B^4) + I(TEAM_BATTING_HR^4) + I(TEAM_BATTING_BB^4) + I(TEAM_BATTING_SO^4) + I(TEAM_BASERUN_SB^4) + I(TEAM_BASERUN_CS^4) + I(TEAM_PITCHING_H^4) + I(TEAM_PITCHING_HR^4) + I(TEAM_PITCHING_BB^4) + I(TEAM_PITCHING_SO^4) + I(TEAM_FIELDING_E^4) + I(TEAM_FIELDING_DP^4) + I(TEAM_BATTING_1B^4)"
-
 full_model <- lm(full_formula, moneyball_train)
 step_back <- MASS::stepAIC(full_model, direction="backward", trace = F)
 poly_call <- summary(step_back)$call
@@ -553,10 +545,8 @@ In order to select which model is the "best" we will test it against a test set.
 moneyball_test$kitchen_sink <- predict(kitchen_sink, moneyball_test)
 moneyball_test <- moneyball_test %>%
   mutate(kitchen_sink_error = TARGET_WINS - kitchen_sink)
-
 ggplot(moneyball_test, aes(kitchen_sink_error)) +
   geom_histogram(bins = 50)
-
 summary(moneyball_test$kitchen_sink_error)
 ```
 
@@ -566,12 +556,13 @@ summary(moneyball_test$kitchen_sink_error)
 moneyball_test$step_back <- predict(step_back, moneyball_test)
 moneyball_test <- moneyball_test %>%
   mutate(step_back_error = TARGET_WINS - step_back)
-
 moneyball_test %>%
-  filter(step_back_error > -100) %>%
+  filter(step_back >0) %>%
+  filter(step_back<182) %>% 
   ggplot(., aes(step_back_error)) +
   geom_histogram(bins = 50) +
   labs(caption = "Outlier removed")
+
 
 summary(moneyball_test$step_back_error)
 ```
@@ -584,11 +575,20 @@ This model did not preform very well on the out of sample data.
 moneyball_test$simple <- predict(simple_fit, moneyball_test)
 moneyball_test <- moneyball_test %>%
   mutate(simple_error = TARGET_WINS - simple)
-
 ggplot(moneyball_test, aes(simple_error)) +
   geom_histogram(bins = 50)
-
 summary(moneyball_test$simple_error)
+```
+
+### Regression Ensemble 
+```{r}
+moneyball_test <- moneyball_test %>% mutate(ensemble_score = (kitchen_sink + step_back + simple)/3)
+moneyball_test <- moneyball_test %>%
+  mutate(ensemble_error = TARGET_WINS - ensemble_score)
+ggplot(moneyball_test, aes(ensemble_error)) +
+  geom_histogram(bins = 50)
+summary(moneyball_test$ensemble_error)
+
 ```
 
 
