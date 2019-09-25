@@ -1,0 +1,318 @@
+---
+title: "Additional Exploratory Data Analysis"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+
+library(tidyverse)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(DMwR)
+
+set.seed(621)
+```
+
+## Data Cleansing
+```{r}
+# Read in the training data
+training <- read_csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw1/data/moneyball-training-data.csv")
+
+# Create a clean dataset to make changes to
+cleaned <- training
+```
+
+### Missing and Invalid Values
+
+Looking at our training data set, here are the variables with 0 or NA values that we need to look at:
+
+```{r}
+# Find columns with 0's and NAs
+mins <- data.frame(sapply(training,FUN = min)) %>% rownames_to_column()
+colnames(mins) <- c("variable","min")
+
+mins %>% filter(is.na(min) | min==0) %>% kable()
+```
+
+#### TARGET_WINS
+
+```{r}
+training %>% ggplot(aes(x=TARGET_WINS)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TARGET_WINS)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TARGET_WINS)),col="green",lty=2) +
+  labs(title="Distribution of Wins",
+       caption="* Red line is the mean value and green is the median")
+```
+
+The range of data looks good except for a single zero value. Since there are no recorded seasons with zero wins in MLB, we should impute a value in it's place. Here the mean seems as good as any value, so we will replace it.
+
+```{r}
+# Replace 0 with the mean value
+cleaned[which(cleaned$TARGET_WINS==0),"TARGET_WINS"] <- mean(cleaned$TARGET_WINS)
+```
+
+#### TEAM_BATTING_3B
+
+This field represents triples hit by the team. Triples aren't very common because the ball is still in the field of play (unlike a homerun) but the batter still has enough time to get 3 bases.
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BATTING_3B)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_3B)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_3B)),col="green",lty=2) +
+  labs(title="Distribution of Triples",
+       caption="* Red line is the mean value and green is the median")
+```
+
+Looking at the distribution, the value of zero doesn't look too unusual. Even if it were, the value is not likely to have a large impact.
+
+#### TEAM_BATTING_HR
+
+Although homeruns are more common in modern baseball (thank you PDEs!), there are some low values in the data. So zero doesn't seem too unusual here either.
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BATTING_HR)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_HR)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_HR)),col="green",lty=2) +
+  labs(title="Distribution of Homeruns",
+       caption="* Red line is the mean value and green is the median")
+```
+
+#### TEAM_BATTING_BB
+
+This variable represents when the batter is "walked" by the pitcher (also known as Base on Balls):
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BATTING_BB)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_BB)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_BB)),col="green",lty=2) +
+  labs(title="Distribution of Walks (Base on Balls)",
+       caption="* Red line is the mean value and green is the median")
+```
+
+Four balls will walk a batter in modern baseball, however that wasn't always the case. A century or more ago (within the date range of this data set) walks took as many as 9 balls to happen[^1]. Knowing this, and looking at the left-tail of the values above, it is not unreasonable that there might be a season with no walks. Like triples above, leaving the one zero data point in is unlikely to adversely impact any regression, since there are valid values nearby.
+
+#### TEAM_BATTING_SO
+
+Here we saw some NA values, `r training %>% filter(is.na(TEAM_BATTING_SO)) %>% nrow(.)` of them to be specific. Plus we have some zero values as well.
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BATTING_SO)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_SO,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_SO,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Strikeouts (Batter)",
+       caption="* Red line is the mean value and green is the median")
+```
+
+First, the zero values seem nigh-impossible. An entire season (100+ games) without a single batter being struck out seems highly suspect, let alone 20 of them in the dataset.
+
+We can replace these values with imputed values, but the distribution looks to be bimodal, so using a mean or median (which is squarely between those peaks) may cause some issues with the model. So, instead, we will impute values using regression.
+
+We can impute a value for this variable by looking at it's nearest neighbors (based on other variables) and taking a weighted average of their values.
+
+```{r}
+# Change 0's to NA so they too can be imputed
+cleaned$TEAM_BATTING_SO <- 
+  ifelse(cleaned$TEAM_BATTING_SO == 0,NA,cleaned$TEAM_BATTING_SO)
+
+temp <- cleaned %>% select(-TARGET_WINS, -INDEX) %>% data.frame() %>%
+  knnImputation()
+
+cleaned$TEAM_BATTING_SO <- temp$TEAM_BATTING_SO
+```
+
+Looking at our distribution, the shape hasn't changed radically and the means and medians ony shifted slightly:
+
+```{r}
+cleaned %>% ggplot(aes(x=TEAM_BATTING_SO)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_SO,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_SO,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Strikeouts (Batter)",
+       subtitle="After Imputation",
+       caption="* Red line is the mean value and green is the median")
+```
+
+#### TEAM_BASERUN_SB
+
+With this variable, we have a good number of NA values, and 2 zeroes:
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BASERUN_SB)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BASERUN_SB,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BASERUN_SB,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Stolen Bases",
+       caption="* Red line is the mean value and green is the median")
+```
+
+The zeroes may be legitimate here so we will leave them alone. For the NAs, we can use the same KNN imputation we used above for strikeouts
+
+```{r}
+cleaned$TEAM_BASERUN_SB <- temp$TEAM_BASERUN_SB
+
+cleaned %>% ggplot(aes(x=TEAM_BASERUN_SB)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BASERUN_SB,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BASERUN_SB,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Stolen Bases",
+       subtitle="After Imputation",
+       caption="* Red line is the mean value and green is the median")
+```
+
+Again we see little structural change in our distribution.
+
+#### TEAM_BASERUN_CS
+
+This variable is NA for nearly a third of records and only 2 zero values (which could be legitimate values):
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BASERUN_CS)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BASERUN_CS,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BASERUN_CS,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Caught Stealing Bases",
+       caption="* Red line is the mean value and green is the median")
+```
+
+Despite the high number of missing values (and a potential for increased error), we will use the KNN imputed values.
+
+```{r}
+cleaned$TEAM_BASERUN_CS <- temp$TEAM_BASERUN_CS
+```
+
+#### TEAM_BATTING_HBP
+
+With this variable, we see nearly all entries are missing:
+
+```{r}
+training %>% ggplot(aes(x=TEAM_BATTING_HBP)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_BATTING_HBP,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_BATTING_HBP,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Being Hit By a Pitch",
+       caption="* Red line is the mean value and green is the median")
+```
+
+We *could* make an assumption that these are all cases where there were no batters hit by a pitch, but that seems ill-advised given the distribution above. In this case, we might be wise to leave them as NA for now.
+
+#### TEAM_PITCHING_HR
+
+This variable has no NA values, but there are a few zero values. However, the zero values seem to be legitimate given the distribution:
+
+```{r}
+training %>% ggplot(aes(x=TEAM_PITCHING_HR)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_PITCHING_HR,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_PITCHING_HR,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Homeruns Pitched",
+       caption="* Red line is the mean value and green is the median")
+```
+
+#### TEAM_PITCHING_BB
+
+Here we have no NA values and a single zero:
+
+```{r}
+training %>% ggplot(aes(x=TEAM_PITCHING_BB)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_PITCHING_BB,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_PITCHING_BB,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Walks Pitched",
+       caption="* Red line is the mean value and green is the median")
+```
+
+As we did with walks above, we can assume that is is possible to have no walks (and therefore pitch no walks). So, we will leave the zero alone.
+
+However, there are some **really** high values in the data, which strains reality a little. We could take anything defined as an outlier ($1.5 \cdot \text{IQR}$) and set it to NA so those records will be excluded from any model we build with this variable. But, when you do the math it seems extreme, but plausible. For example, the most number of games in a season in MLB is 162 (currently). With a max value or 3,645 walks pitched you get 22.5 walks per game on average. Divided equally amongst 9 innings, it comes out to 2.5 walks per inning. 
+
+I'd be surprised that any pitcher wouldn't be removed after an inning or two of 2-3 walks, but neither can we rule it out as a possibility.
+
+#### TEAM_PITCHING_SO
+
+This variable represents strikeouts pitched. We see that there are 102 NA values and a *lot* of extremely high values:
+
+```{r}
+training %>% ggplot(aes(x=TEAM_PITCHING_SO)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_PITCHING_SO,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_PITCHING_SO,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Strikeouts Pitched",
+       caption="* Red line is the mean value and green is the median")
+```
+
+We can use the KNN imputation to help with the NA values
+
+```{r}
+cleaned$TEAM_PITCHING_SO <- temp$TEAM_PITCHING_SO
+```
+
+With the NA's fixed, we can turn our attention now to the extreme values.
+
+The extreme values need to be handled. First, a typical game will be 9 innings in length, and in each inning you can only pitch 3 strikeouts (because then your part of the inning is over). Those 27 potential strikeouts multiplied by 162 games means an upper limit near 4,374 a season.
+
+Games can go beyond 9 innings, but even if every game in a season was as long as the longest ever MLB game (26 innings) you can only have 12,636 strikeouts. So, the max value of `r max(training$TEAM_PITCHING_SO,na.rm=T)` is invalid.
+
+We'll make a high-yet-reasonable assumption of a mean 11 innings per game, and call anything more than 5,346 strikeouts an invalid data point by setting them to NA so they will be disregarded in any modeling.
+
+```{r}
+cleaned[which(cleaned$TEAM_PITCHING_SO > 5346),"TEAM_PITCHING_SO"] <- NA
+```
+
+```{r}
+cleaned %>% ggplot(aes(x=TEAM_PITCHING_SO)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_PITCHING_SO,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_PITCHING_SO,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Strikeouts Pitched",
+       subtitle="After Removing Invalid Data and Imputation",
+       caption="* Red line is the mean value and green is the median")
+```
+
+#### TEAM_FIELDING_DP
+
+The values in this variable seem reasonable, however we do have some NA values.
+
+```{r}
+training %>% ggplot(aes(x=TEAM_FIELDING_DP)) + geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept=mean(TEAM_FIELDING_DP,na.rm = T)),col="red",lty=2) +
+  geom_vline(aes(xintercept=median(TEAM_FIELDING_DP,na.rm=T)),col="green",lty=2) +
+  labs(title="Distribution of Double Plays",
+       caption="* Red line is the mean value and green is the median")
+```
+
+Again, we use the KNN imputation from earlier to fill in NAs with imputed values.
+
+```{r}
+cleaned$TEAM_FIELDING_DP <- temp$TEAM_FIELDING_DP
+```
+
+## Linear Models
+
+### Simple Models
+
+#### Model 1
+
+Now we can begin to put together a linear model and see how well it fits.
+
+We will start with a few obvious variables: `TEAM_BATTING_HR`, `TEAM_PITCHING_HR`, `TEAM_BATTING_H`, and `TEAM_PITCHING_H`:
+
+```{r}
+model1 <- lm(TARGET_WINS ~ TEAM_BATTING_HR + TEAM_PITCHING_HR +
+               TEAM_BATTING_H + TEAM_PITCHING_H, data=cleaned)
+model1.summary <- summary(model1)
+model1.summary
+```
+
+Interestingly, only the "hit" variables seem to be statistically significant in this model. The adjusted $R^2$ value is only `r round(model1.summary$adj.r.squared,3)`.
+
+#### Model 2
+
+If we remove the "HR" variables, we have a decrease in adjusted $R^2$:
+
+```{r}
+model2 <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_PITCHING_H, data=cleaned)
+model2.summary <- summary(model2)
+model2.summary
+```
+
+
+[^1]: https://en.wikipedia.org/wiki/Base_on_balls
