@@ -546,7 +546,13 @@ moneyball_test$kitchen_sink <- predict(kitchen_sink, moneyball_test)
 moneyball_test <- moneyball_test %>%
   mutate(kitchen_sink_error = TARGET_WINS - kitchen_sink)
 ggplot(moneyball_test, aes(kitchen_sink_error)) +
-  geom_histogram(bins = 50)
+  geom_histogram(bins = 50) +
+  annotate("text",x=0,y=10,
+           label = paste("RMSE = ",
+                         round(sqrt(mean(moneyball_test$kitchen_sink_error^2)),2)
+                         ),
+           color="white"
+           )
 summary(moneyball_test$kitchen_sink_error)
 ```
 
@@ -561,6 +567,12 @@ moneyball_test %>%
   filter(step_back<182) %>% 
   ggplot(., aes(step_back_error)) +
   geom_histogram(bins = 50) +
+  annotate("text",x=0,y=10,
+           label = paste("RMSE = ",
+                         round(sqrt(mean(moneyball_test$step_back_error^2)),2)
+                         ),
+           color="white"
+           )
   labs(caption = "Outlier removed")
 
 
@@ -576,7 +588,13 @@ moneyball_test$simple <- predict(simple_fit, moneyball_test)
 moneyball_test <- moneyball_test %>%
   mutate(simple_error = TARGET_WINS - simple)
 ggplot(moneyball_test, aes(simple_error)) +
-  geom_histogram(bins = 50)
+  geom_histogram(bins = 50) +
+  annotate("text",x=0,y=10,
+           label = paste("RMSE = ",
+                         round(sqrt(mean(moneyball_test$simple_error^2)),2)
+                         ),
+           color="white"
+           )
 summary(moneyball_test$simple_error)
 ```
 
@@ -586,7 +604,13 @@ moneyball_test <- moneyball_test %>% mutate(ensemble_score = (kitchen_sink + ste
 moneyball_test <- moneyball_test %>%
   mutate(ensemble_error = TARGET_WINS - ensemble_score)
 ggplot(moneyball_test, aes(ensemble_error)) +
-  geom_histogram(bins = 50)
+  geom_histogram(bins = 50) +
+  annotate("text",x=0,y=10,
+           label = paste("RMSE = ",
+                         round(sqrt(mean(moneyball_test$ensemble_error^2)),2)
+                         ),
+           color="white"
+           )
 summary(moneyball_test$ensemble_error)
 
 ```
