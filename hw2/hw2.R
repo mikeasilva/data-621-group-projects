@@ -1,3 +1,11 @@
+confusion_matrix <- function(df, actual, predicted){
+  table(df[[actual]], df[[predicted]])
+}
+
+confusion_matrix_counts <- function(cm){
+  
+}
+
 # Write a function that takes the data set as a dataframe, with actual and 
 # predicted classifications identified, and returns the accuracy of the 
 # predictions.
