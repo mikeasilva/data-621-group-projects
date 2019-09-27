@@ -2,8 +2,13 @@ confusion_matrix <- function(df, actual, predicted){
   table(df[[actual]], df[[predicted]])
 }
 
-confusion_matrix_counts <- function(cm){
-  
+confusion_matrix_outcomes <- function(cm){
+  # This will obviously need some work to handle more than a 2x2 matrix
+  TN <- cm[1]
+  FP <- cm[2]
+  FN <- cm[3]
+  TP <- cm[4]
+  list("TN" = TN, "FP" = FP, "FN" = FN, "TP" = TP)
 }
 
 # Write a function that takes the data set as a dataframe, with actual and 
@@ -11,7 +16,8 @@ confusion_matrix_counts <- function(cm){
 # predictions.
 
 accuracy <- function(df, actual, predicted){
-  
+  cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
+  (cm$TP + cm$TN) / (cm$TP + cm$FP + cm$TN + cm$FN)
 }
 
 # Write a function that takes the data set as a dataframe, with actual and 
@@ -20,7 +26,8 @@ accuracy <- function(df, actual, predicted){
 # Verify that you get an accuracy and an error rate that sums to one.
 
 classification_error_rate <- function(df, actual, predicted){
-  
+  cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
+  (cm$FP + cm$FN) / (cm$TP + cm$FP + cm$TN + cm$FN)
 }
 
 # Write a function that takes the data set as a dataframe, with actual and 
@@ -28,7 +35,8 @@ classification_error_rate <- function(df, actual, predicted){
 # predictions.
 
 precision <- function(df, actual, predicted){
-  
+  cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
+  cm$TP / (cm$TP + cm$FP)
 }
 
 # Write a function that takes the data set as a dataframe, with actual and 
@@ -36,7 +44,8 @@ precision <- function(df, actual, predicted){
 # predictions. Sensitivity is also known as recall.
 
 sensitivity <- function(df, actual, predicted){
-  
+  cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
+  cm$TP / (cm$TP + cm$FN)
 }
 
 recall <- function(df, actual, predicted){
@@ -48,7 +57,8 @@ recall <- function(df, actual, predicted){
 # predictions.
 
 specificity <- function(df, actual, predicted){
-  
+  cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
+  cm$TN / (cm$TN + cm$FP)
 }
 
 # Write a function that takes the data set as a dataframe, with actual and
@@ -56,7 +66,9 @@ specificity <- function(df, actual, predicted){
 # predictions.
 
 f1_score <- function(df, actual, predicted){
-  
+  p <- precision(df, actual, predicted)
+  s <- specificity(df, actual, predicted)
+  (2 * p * s) / (p + s)
 }
 
 # Write a function that generates an ROC curve from a data set with a true
