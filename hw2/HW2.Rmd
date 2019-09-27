@@ -1,0 +1,30 @@
+---
+title: "DATA 621 Homework #2"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(kableExtra)
+library(caret)
+library(pROC)
+```
+
+
+```{r}
+source("hw2.R")
+df <- read.csv("./data/classification-output-data.csv")
+actual <- "class"
+predicted <- "scored.class"
+
+cm <- confusion_matrix(df, actual, predicted)
+```
+
