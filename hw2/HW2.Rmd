@@ -55,7 +55,8 @@ source("hw2.R")
 df <- read.csv("./data/classification-output-data.csv")
 actual <- "class"
 predicted <- "scored.class"
-
+probability <- "scored.probability"
+  
 confusion_matrix(df, actual, predicted) %>%
   kable() %>%
   kable_styling()

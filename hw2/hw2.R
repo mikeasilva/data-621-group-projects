@@ -78,6 +78,6 @@ f1_score <- function(df, actual, predicted){
 # calculated area under the curve (AUC). Note that I recommend using a
 # sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
 
-roc_curve <- function(df, true_classification, probabilty){
+roc_curve <- function(df, actual, probabilty){
   
 }
