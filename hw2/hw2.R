@@ -1,13 +1,13 @@
 confusion_matrix <- function(df, actual, predicted){
-  table(df[[actual]], df[[predicted]])
+  table(df[[predicted]], df[[actual]])
 }
 
 confusion_matrix_outcomes <- function(cm){
   # This will obviously need some work to handle more than a 2x2 matrix
-  TN <- cm[1]
-  FP <- cm[2]
-  FN <- cm[3]
-  TP <- cm[4]
+  TP <- cm[1]
+  FN <- cm[2]
+  FP <- cm[3]
+  TN <- cm[4]
   list("TN" = TN, "FP" = FP, "FN" = FN, "TP" = TP)
 }
 
@@ -67,7 +67,7 @@ specificity <- function(df, actual, predicted){
 
 f1_score <- function(df, actual, predicted){
   p <- precision(df, actual, predicted)
-  s <- specificity(df, actual, predicted)
+  s <- sensitivity(df, actual, predicted)
   (2 * p * s) / (p + s)
 }
 
@@ -78,6 +78,5 @@ f1_score <- function(df, actual, predicted){
 # calculated area under the curve (AUC). Note that I recommend using a
 # sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
 
-roc_curve <- function(df, actual, probabilty){
-  
+roc_curve <- function(df, actual, probability, interval = 0.01){
 }

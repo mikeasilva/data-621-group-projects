@@ -48,60 +48,39 @@ knitr::knit_hooks$set( output = function(x, options) {
 knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
-## Confusion Matrix
-
 ```{r}
-source("hw2.R")
 df <- read.csv("./data/classification-output-data.csv")
 actual <- "class"
 predicted <- "scored.class"
 probability <- "scored.probability"
-  
+# Load our functions
+source("hw2.R")
+```
+
+## Caret's Output
+
+```{r}
+confusionMatrix(factor(df[[predicted]]), factor(df[[actual]]))
+```
+
+## Our Function's Output 
+
+**Confusion Matrix**
+
+```{r}
 confusion_matrix(df, actual, predicted) %>%
   kable() %>%
   kable_styling()
 ```
 
-## Accuracy
+**Accuracy**: `r accuracy(df, actual, predicted)`
 
-```{r, null_prefix=TRUE}
-accuracy(df, actual, predicted)
-```
+**Classification Error Rate**: `r classification_error_rate(df, actual, predicted)`
 
-## Classification Error Rate
+**Precision**: `r precision(df, actual, predicted)`
 
-```{r, null_prefix=TRUE}
-classification_error_rate(df, actual, predicted)
-```
+**Sensitivity (Recall)**: `r sensitivity(df, actual, predicted)`
 
-### Verify Accuracy and Error Rate Sum to 1
+**Specificity**: `r specificity(df, actual, predicted)`
 
-```{r, null_prefix=TRUE}
-accuracy(df, actual, predicted) + classification_error_rate(df, actual, predicted)
-```
-
-## Precision
-
-```{r, null_prefix=TRUE}
-precision(df, actual, predicted)
-```
-
-## Sensitivity
-
-```{r, null_prefix=TRUE}
-sensitivity(df, actual, predicted)
-```
-
-## Specificity
-
-```{r, null_prefix=TRUE}
-specificity(df, actual, predicted)
-```
-
-## F1 Score
-
-```{r, null_prefix=TRUE}
-f1_score(df, actual, predicted)
-```
-### F1 Score Will Always be Between 0 and 1
-
+**F1 Score**: `r f1_score(df, actual, predicted)`
