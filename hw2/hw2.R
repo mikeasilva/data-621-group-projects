@@ -79,4 +79,16 @@ f1_score <- function(df, actual, predicted){
 # sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
 
 roc_curve <- function(df, actual, probability, interval = 0.01){
+  outcome <- data.frame(matrix(ncol = 4, nrow = 0))
+  names(outcome) <- c("prob", "TPR", "FPR")
+  for (threshold in seq(0, 1, interval)){
+    df$roc_prediction <- ifelse(df[[probability]] > threshold, 1, 0)
+    cm <- confusion_matrix(df, actual, "roc_prediction")
+    cmo <- confusion_matrix_outcomes(cm)
+    s <- sensitivity(df, actual, "roc_prediction")
+    f <- 1 - specificity(df, actual, "roc_prediction")
+    row <- data.frame(prob = threshold, TPR = s, FPR = f, area = 0)
+    outcome <- rbind(outcome, row)
+  }
+  return(outcome)
 }
