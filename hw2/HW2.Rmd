@@ -89,26 +89,14 @@ confusion_matrix(df, actual, predicted) %>%
 
 ```{r}
 par(pty = "s")
-roc(df[[actual]], df[[predicted]], plot = TRUE, legacy.axes = TRUE, percent = TRUE, print.auc = TRUE)
+roc(df[[actual]], df[[predicted]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
 par(pty = "m")
 ```
 
 ## Our ROC Curve
 
 ```{r}
-# This is for testing only
-roc_curve(df, actual, probability) %>%
-  kable() %>%
-  kable_styling()
-```
+our_roc <- roc_curve(df, actual, probability)
 
-
-```{r}
-df$test <- ifelse(df[[probability]] > 0.02, 1, 0)
-confusion_matrix(df, actual, "test")
-```
-
-```{r}
-df$test <- ifelse(df[[probability]] > 0.95, 1, 0)
-confusion_matrix(df, actual, "test")
+our_roc$plot
 ```
