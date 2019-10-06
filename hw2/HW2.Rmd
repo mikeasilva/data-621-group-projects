@@ -84,3 +84,11 @@ confusion_matrix(df, actual, predicted) %>%
 **Specificity**: `r specificity(df, actual, predicted)`
 
 **F1 Score**: `r f1_score(df, actual, predicted)`
+
+## pROC Output
+
+```{r}
+par(pty = "s")
+roc(df[[actual]], df[[predicted]], plot = TRUE, legacy.axes = TRUE, percent = TRUE, print.auc = TRUE)
+par(pty = "m")
+```
