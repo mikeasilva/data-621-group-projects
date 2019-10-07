@@ -1,0 +1,102 @@
+---
+title: "DATA 621 Homework #2"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(kableExtra)
+library(caret)
+library(pROC)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+```{r}
+df <- read.csv("./data/classification-output-data.csv")
+actual <- "class"
+predicted <- "scored.class"
+probability <- "scored.probability"
+# Load our functions
+source("hw2.R")
+```
+
+## Caret's Output
+
+```{r}
+confusionMatrix(factor(df[[predicted]]), factor(df[[actual]]))
+```
+
+## Our Function's Output 
+
+**Confusion Matrix**
+
+```{r}
+confusion_matrix(df, actual, predicted) %>%
+  kable() %>%
+  kable_styling()
+```
+
+**Accuracy**: `r accuracy(df, actual, predicted)`
+
+**Classification Error Rate**: `r classification_error_rate(df, actual, predicted)`
+
+**Precision**: `r precision(df, actual, predicted)`
+
+**Sensitivity (Recall)**: `r sensitivity(df, actual, predicted)`
+
+**Specificity**: `r specificity(df, actual, predicted)`
+
+**F1 Score**: `r f1_score(df, actual, predicted)`
+
+## pROC Output
+
+```{r}
+par(pty = "s")
+roc(df[[actual]], df[[predicted]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
+par(pty = "m")
+```
+
+## Our ROC Curve
+
+```{r}
+our_roc <- roc_curve(df, actual, probability)
+
+our_roc$plot
+```
