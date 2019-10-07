@@ -100,3 +100,45 @@ our_roc <- roc_curve(df, actual, probability)
 
 our_roc$plot
 ```
+
+### F1 Score Will Always be Between 0 and 1
+Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1. (Hint: If 0<a<1 and 0<b<1 then ab<a).
+
+  
+**Proving the range of the F1 Score must be between 0 and 1**
+  
+**Let's expand the F1 equation using the definitions of precision and sensitivity.**
+
+
+$$\textrm{F1 Score}= \frac{2 \times\mathrm{Precision}\times\mathrm{Sensitivity}}{\mathrm{Precision}+\mathrm{Sensitivity}}$$ 
+**The numerator is equal to**
+$$=\frac{2 \times TP \times TP}{(TP + FP)(TP+FN)}$$ 
+**The denominator is equal to**
+$$= \frac{1}{\frac{TP}{TP+FP}+\frac{TP}{TP+FN}}$$  
+**Combine the Numerator and the denominator:**
+$$F1=\frac{2 \times TP \times TP}{(TP + FP)(TP+FN)} \times \frac{1}{\frac{TP}{TP+FP}+\frac{TP}{TP+FN}}$$  
+**Multiply the denominator by (TP + FP)(TP + FN):**
+
+$$denominator = \frac{(TP+FP)(TP+FN)}{TP(TP+FN)+TP(TP+FP)}$$  
+$$F1=\frac{2(TP)^2}{(TP+FP)(TP+FN)}\times \frac{(TP+FP)(TP+FN)}{TP(TP+FN)+TP(TP+FP)}$$  
+**Cancel the denominator of the first term with the numerator of the second term:**
+
+$$F1 =\frac{2(TP)^2}{TP(TP+FN)+TP(TP+FP)}$$
+**Simplify the Denominator:**
+$$F1 =\frac{2(TP)^2}{TP^2+FNTP+TP^2+TPFP}$$  
+$$F1 =\frac{2(TP)^2}{TP(TP+FN+TP+FP)}$$  
+$$F1 =\frac{2(TP)^2}{TP(TP+FN+TP+FP)}$$  
+$$F1 =\frac{2(TP)^2}{TP(2TP +FN +FP)}$$ 
+**Cancel the TP terms and get final answer**
+$$F1=\frac{2TP}{2TP+FN+FP}$$
+<br>  
+In the equation above, $TP,FN,FP \in \mathbb{N}$ where $\mathbb{N} = \{0,1,2,3...\}$  
+ 
+$2TP \le2TP+FN+FP$ this equation shows that the numerator is at most equal to the denominator (i.e $F1\le1$).  
+  
+There would be a Maximum value of $1$ when $FN=FP=0$ and $TP > 0$  
+
+The fraction $=\frac{2TP}{2TP+FN+FP}$ has a minimum value of zero when the numerator is minimized (i.e. $TP=0$).  
+  
+We have shown that $0\le F1\le1$
+<br>  
