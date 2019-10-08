@@ -142,3 +142,23 @@ The fraction $=\frac{2TP}{2TP+FN+FP}$ has a minimum value of zero when the numer
   
 We have shown that $0\le F1\le1$
 <br>  
+
+## pROC Output
+
+```{r}
+par(pty = "s")
+roc(df[[actual]], df[[probability]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
+par(pty = "m")
+```
+
+## Our ROC Curve
+
+```{r}
+our_roc <- roc_curve(df, actual, probability)
+
+our_roc$plot
+```
+
+```{r}
+our_roc$auc_vector
+```
