@@ -146,3 +146,8 @@ our_roc$plot
 ```{r}
 our_roc$auc_vector
 ```
+
+## Source Code
+
+```{r source, code=readLines("hw2.R")}
+```
