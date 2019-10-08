@@ -85,22 +85,6 @@ confusion_matrix(df, actual, predicted) %>%
 
 **F1 Score**: `r f1_score(df, actual, predicted)`
 
-## pROC Output
-
-```{r}
-par(pty = "s")
-roc(df[[actual]], df[[predicted]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
-par(pty = "m")
-```
-
-## Our ROC Curve
-
-```{r}
-our_roc <- roc_curve(df, actual, probability)
-
-our_roc$plot
-```
-
 ### F1 Score Will Always be Between 0 and 1
 Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1. (Hint: If 0<a<1 and 0<b<1 then ab<a).
 
