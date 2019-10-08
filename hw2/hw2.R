@@ -97,20 +97,26 @@ f1_score <- function(df, actual, predicted){
 
 roc_curve <- function(df, actual, probability, interval = 0.01){
   outcome <- data.frame(matrix(ncol = 3, nrow = 0))
-  names(outcome) <- c("prob", "TPR", "FPR")
+  names(outcome) <- c("probability", "TPR", "FPR")
   for (threshold in seq(0, 1, interval)){
     df$roc_prediction <- ifelse(df[[probability]] > threshold, 1, 0)
     cm <- confusion_matrix(df, actual, "roc_prediction")
     cmo <- confusion_matrix_outcomes(cm)
     s <- sensitivity(df, actual, "roc_prediction")
     f <- 1 - specificity(df, actual, "roc_prediction")
-    row <- data.frame(prob = threshold, TPR = s, FPR = f)
+    row <- data.frame(probability = threshold, TPR = s, FPR = f)
     outcome <- rbind(outcome, row)
   }
   
   outcome$area <- (outcome$FPR - dplyr::lag(outcome$FPR)) * outcome$TPR
+  # Fill in missing values with zeros
+  outcome <- outcome %>%
+    mutate(area = ifelse(is.na(area), 0, area))
   
-  auc <- sum(outcome$area, na.rm = TRUE)
+  auc_vector <- outcome$area
+  names(auc_vector) <- outcome$probability
+  
+  auc <- sum(auc_vector)
   
   roc_plot <- ggplot(outcome) +
     geom_line(aes(FPR, TPR), color="dodger blue") +
@@ -121,7 +127,5 @@ roc_curve <- function(df, actual, probability, interval = 0.01){
     geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
     coord_equal(ratio=1)
   
-  return(list(plot = roc_plot, auc = auc))
-  
-  return(outcome)
+  return(list(plot = roc_plot, auc = auc, auc_vector = auc_vector))
 }
