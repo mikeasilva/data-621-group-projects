@@ -51,9 +51,6 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```{r}
 df <- read.csv('data/crime-training-data_modified.csv')
 evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
-```
-
-```{r}
 set.seed(42)
 train_index <- createDataPartition(df$target, p = .8, list = FALSE, times = 1)
 train <- df[train_index,]
@@ -68,21 +65,21 @@ train %>%
   corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
 ```
 
+The following show the how predictors are distributed between the areas with crime rates higher than the median *blue) and below the median (red).
 
 ```{r}
 for (var in names(train)){
   if(var != "target"){
     plot_df <- train
-    plot_df$y <- plot_df[,var]
-    p <- ggplot(plot_df, aes(target, y, fill = factor(target))) +
-      geom_boxplot() +
+    plot_df$x <- plot_df[,var]
+    p <- ggplot(plot_df, aes(x, color = factor(target))) +
+      geom_density() +
       theme_light() +
       ggtitle(var) +
+      scale_color_brewer(palette = "Set1") +
       theme(legend.position = "none",
             axis.title.y = element_blank(),
-            axis.title.x = element_blank(),
-            axis.text.x = element_blank(),
-            axis.ticks.x = element_blank())
+            axis.title.x = element_blank())
     print(p)
   }
 }
