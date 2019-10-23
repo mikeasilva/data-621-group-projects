@@ -1,0 +1,106 @@
+---
+title: "DATA 621 Homework #3"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(kableExtra)
+library(corrplot)
+library(caret)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+```{r}
+df <- read.csv('data/crime-training-data_modified.csv')
+evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
+```
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$target, p = .8, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+## Data Exploration
+
+```{r}
+train %>% 
+  cor(., use = "complete.obs") %>%
+  corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
+```
+
+
+```{r}
+for (var in names(train)){
+  if(var != "target"){
+    plot_df <- train
+    plot_df$y <- plot_df[,var]
+    p <- ggplot(plot_df, aes(target, y, fill = factor(target))) +
+      geom_boxplot() +
+      theme_light() +
+      ggtitle(var) +
+      theme(legend.position = "none",
+            axis.title.y = element_blank(),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank())
+    print(p)
+  }
+}
+```
+
+## Data Preparation
+
+## Model Building
+
+## Model Selection
+
+```{r}
+library(FFTrees)
+fit <- FFTrees(target ~ ., train, test, main = "Crime Rate", decision.labels = c("Below Median", "Above Median"))
+
+for (i in 1:6){
+  p <- plot(fit, data = "test", tree=i)
+  print(p)
+}
+
+```
