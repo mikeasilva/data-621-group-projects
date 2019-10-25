@@ -16,6 +16,7 @@ library(tidyverse)
 library(kableExtra)
 library(corrplot)
 library(caret)
+library(Amelia)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -51,21 +52,38 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```{r}
 df <- read.csv('data/crime-training-data_modified.csv')
 evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
-set.seed(42)
-train_index <- createDataPartition(df$target, p = .8, list = FALSE, times = 1)
-train <- df[train_index,]
-test <- df[-train_index,]
 ```
 
 ## Data Exploration
 
+### Are There Missing Values?
+
+```{r}
+missmap(df, main = "Missing vs Observed Values")
+```
+
+It looks like we have a complete data set.  No need to impute values.
+
+### Splitting the Data
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$target, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+
+### Exploratory Data Analysis
+
+
 ```{r}
 train %>% 
-  cor(., use = "complete.obs") %>%
+  cor(.) %>%
   corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
 ```
 
-The following show the how predictors are distributed between the areas with crime rates higher than the median *blue) and below the median (red).
+The following show the how predictors are distributed between the areas with crime rates higher than the median *blue) and below the median (red).  What we are looking for is variables that could split data into two groups.
 
 ```{r}
 for (var in names(train)){
@@ -85,14 +103,29 @@ for (var in names(train)){
 }
 ```
 
+NOX seems to be the best variable to divide the data into the two groups
+
 ## Data Preparation
 
 ## Model Building
+
+Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
+
+```{r}
+baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
+summary(baseline)
+test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
+test$baseline2 <- predict(baseline, test)
+confusionMatrix(factor(test$baseline), factor(test$target))
+```
 
 ## Model Selection
 
 ```{r}
 library(FFTrees)
+
+test <- test[names(train)]
+
 fit <- FFTrees(target ~ ., train, test, main = "Crime Rate", decision.labels = c("Below Median", "Above Median"))
 
 for (i in 1:6){
