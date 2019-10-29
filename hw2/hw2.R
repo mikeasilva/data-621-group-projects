@@ -3,16 +3,17 @@ library(ggplot2)
 
 confusion_matrix <- function(df, actual, predicted){
   cm <- table(df[[predicted]], df[[actual]])
-  if(nrow(cm) == ncol(cm)){
+  if (nrow(cm) == ncol(cm)){
     return(cm)
   }
   # Make sure all missing values are present in the confusion matrix
   fixed_cm <- matrix(0, ncol(cm), ncol(cm))
   colnames(fixed_cm) <- colnames(cm)
   rownames(fixed_cm) <- colnames(cm)
-  # Horribly inefficient at large scale but since we're dealing with a confusion matrix...
-  for(r in rownames(cm)){
-    for(c in colnames(cm)){
+  # Horribly inefficient at large scale but since we're dealing with a
+  # confusion matrix...
+  for (r in rownames(cm)){
+    for (c in colnames(cm)){
       fixed_cm[r, c] <- cm[r, c]
     }
   }
@@ -40,7 +41,6 @@ accuracy <- function(df, actual, predicted){
 # Write a function that takes the data set as a dataframe, with actual and 
 # predicted classifications identified, and returns the classification error 
 # rate of the predictions.
-# Verify that you get an accuracy and an error rate that sums to one.
 
 classification_error_rate <- function(df, actual, predicted){
   cm <- confusion_matrix_outcomes(confusion_matrix(df, actual, predicted))
@@ -97,31 +97,34 @@ f1_score <- function(df, actual, predicted){
 
 roc_curve <- function(df, actual, probability, interval = 0.01){
   outcome <- data.frame(matrix(ncol = 3, nrow = 0))
-  names(outcome) <- c("prob", "TPR", "FPR")
+  names(outcome) <- c("probability", "TPR", "FPR")
   for (threshold in seq(0, 1, interval)){
     df$roc_prediction <- ifelse(df[[probability]] > threshold, 1, 0)
-    cm <- confusion_matrix(df, actual, "roc_prediction")
-    cmo <- confusion_matrix_outcomes(cm)
-    s <- sensitivity(df, actual, "roc_prediction")
-    f <- 1 - specificity(df, actual, "roc_prediction")
-    row <- data.frame(prob = threshold, TPR = s, FPR = f)
+    tpr <- sensitivity(df, actual, "roc_prediction")
+    fpr <- 1 - specificity(df, actual, "roc_prediction")
+    row <- data.frame(probability = threshold, TPR = tpr, FPR = fpr)
     outcome <- rbind(outcome, row)
   }
-  
+  # Compute the area
   outcome$area <- (outcome$FPR - dplyr::lag(outcome$FPR)) * outcome$TPR
-  
-  auc <- sum(outcome$area, na.rm = TRUE)
-  
+  # Fill in missing values with zeros
+  outcome <- outcome %>%
+    mutate(area = ifelse(is.na(area), 0, area))
+  # Create a vector of area under the curve
+  auc_vector <- outcome$area
+  names(auc_vector) <- outcome$probability
+  # Sum it to get total area under the curve
+  auc <- sum(auc_vector)
+  # Create a ROC plot
   roc_plot <- ggplot(outcome) +
-    geom_line(aes(FPR, TPR), color="dodger blue") +
+    geom_line(aes(FPR, TPR), color = "dodger blue") +
     xlab("False Positive Rate (FPR)") +
     ylab("True Positive Rate (TPR)") +
     theme_minimal() +
-    annotate(geom="text", x = 0.7, y = 0.07, label=paste("AUC:", round(auc, 3))) +
+    annotate(geom = "text", x = 0.7, y = 0.07,
+             label = paste("AUC:", round(auc, 3))) +
     geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-    coord_equal(ratio=1)
-  
-  return(list(plot = roc_plot, auc = auc))
-  
-  return(outcome)
+    coord_equal(ratio = 1)
+  # Return the list
+  return(list(plot = roc_plot, auc = auc, auc_vector = auc_vector))
 }

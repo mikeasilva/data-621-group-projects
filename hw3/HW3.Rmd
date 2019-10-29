@@ -1,0 +1,195 @@
+---
+title: "DATA 621 Homework #3"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(kableExtra)
+library(corrplot)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(Amelia)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+```{r}
+df <- read.csv('data/crime-training-data_modified.csv')
+evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
+```
+
+## Data Exploration
+
+### Are There Missing Values?
+
+```{r}
+missmap(df, main = "Missing vs Observed Values")
+```
+
+It looks like we have a complete data set.  No need to impute values.
+
+### Splitting the Data
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$target, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+
+### Exploratory Data Analysis
+
+
+```{r}
+train %>% 
+  cor(.) %>%
+  corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
+```
+
+The following show the how predictors are distributed between the areas with crime rates higher than the median *blue) and below the median (red).  What we are looking for is variables that could split data into two groups.
+
+```{r}
+for (var in names(train)){
+  if(var != "target"){
+    plot_df <- train
+    plot_df$x <- plot_df[,var]
+    p <- ggplot(plot_df, aes(x, color = factor(target))) +
+      geom_density() +
+      theme_light() +
+      ggtitle(var) +
+      scale_color_brewer(palette = "Set1") +
+      theme(legend.position = "none",
+            axis.title.y = element_blank(),
+            axis.title.x = element_blank())
+    print(p)
+  }
+}
+```
+
+NOX seems to be the best variable to divide the data into the two groups
+
+## Data Preparation
+```{r}
+ggplot(train, aes(rad , nox, color=as.factor(target))) +
+  geom_point()
+```
+
+
+```{r}
+library(FFTrees)
+
+test <- test[names(train)]
+
+fit <- FFTrees(target ~ ., train, test, main = "Crime Rate", decision.labels = c("Below Median", "Above Median"))
+
+for (i in 1:6){
+  p <- plot(fit, data = "test", tree=i)
+  print(p)
+}
+```
+
+```{r}
+fit <- rpart(target ~ ., method="class", data=train)
+rpart.plot(fit)
+```
+
+
+```{r}
+get_high_nox <- function(x){
+  if(x > 0.53){
+    return("High")
+  } else {
+    return("Low")
+  }
+}
+
+get_divider <- function(x, y){
+  if(x < 10 & y < 0.6){
+    return(1)
+  } else {
+    return(0)
+  }
+}
+
+train <- train %>%
+  rowwise() %>%
+  mutate(high_nox = get_high_nox(nox),
+         divider = get_divider(rad, nox))
+
+test <- test %>%
+  rowwise() %>%
+  mutate(high_nox = get_high_nox(nox),
+         divider = get_divider(rad, nox))
+```
+
+## Model Building
+
+Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
+
+```{r}
+baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
+summary(baseline)
+test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
+test$baseline_yhat <- predict(baseline, test)
+confusionMatrix(factor(test$baseline), factor(test$target))
+```
+
+
+```{r}
+model1 <- glm(target ~ high_nox + indus, family = binomial(link = "logit"), train)
+summary(model1)
+test$model1 <- ifelse(predict(model1, test) < 0.5, 0, 1)
+test$model1_yhat <- predict(model1, test)
+confusionMatrix(factor(test$model1), factor(test$target))
+```
+
+
+```{r}
+model2 <- glm(target ~ divider, family = binomial(link = "logit"), train)
+summary(model2)
+test$model2 <- ifelse(predict(model2, test) < 0.5, 0, 1)
+test$model2_yhat <- predict(model2, test)
+confusionMatrix(factor(test$model2), factor(test$target))
+```
+
+## Model Selection
+
