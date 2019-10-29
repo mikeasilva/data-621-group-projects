@@ -16,6 +16,8 @@ library(tidyverse)
 library(kableExtra)
 library(corrplot)
 library(caret)
+library(rpart)
+library(rpart.plot)
 library(Amelia)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
@@ -106,20 +108,11 @@ for (var in names(train)){
 NOX seems to be the best variable to divide the data into the two groups
 
 ## Data Preparation
-
-## Model Building
-
-Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
-
 ```{r}
-baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
-summary(baseline)
-test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
-test$baseline2 <- predict(baseline, test)
-confusionMatrix(factor(test$baseline), factor(test$target))
+ggplot(train, aes(rad , nox, color=as.factor(target))) +
+  geom_point()
 ```
 
-## Model Selection
 
 ```{r}
 library(FFTrees)
@@ -132,5 +125,71 @@ for (i in 1:6){
   p <- plot(fit, data = "test", tree=i)
   print(p)
 }
-
 ```
+
+```{r}
+fit <- rpart(target ~ ., method="class", data=train)
+rpart.plot(fit)
+```
+
+
+```{r}
+get_high_nox <- function(x){
+  if(x > 0.53){
+    return("High")
+  } else {
+    return("Low")
+  }
+}
+
+get_divider <- function(x, y){
+  if(x < 10 & y < 0.6){
+    return(1)
+  } else {
+    return(0)
+  }
+}
+
+train <- train %>%
+  rowwise() %>%
+  mutate(high_nox = get_high_nox(nox),
+         divider = get_divider(rad, nox))
+
+test <- test %>%
+  rowwise() %>%
+  mutate(high_nox = get_high_nox(nox),
+         divider = get_divider(rad, nox))
+```
+
+## Model Building
+
+Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
+
+```{r}
+baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
+summary(baseline)
+test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
+test$baseline_yhat <- predict(baseline, test)
+confusionMatrix(factor(test$baseline), factor(test$target))
+```
+
+
+```{r}
+model1 <- glm(target ~ high_nox + indus, family = binomial(link = "logit"), train)
+summary(model1)
+test$model1 <- ifelse(predict(model1, test) < 0.5, 0, 1)
+test$model1_yhat <- predict(model1, test)
+confusionMatrix(factor(test$model1), factor(test$target))
+```
+
+
+```{r}
+model2 <- glm(target ~ divider, family = binomial(link = "logit"), train)
+summary(model2)
+test$model2 <- ifelse(predict(model2, test) < 0.5, 0, 1)
+test$model2_yhat <- predict(model2, test)
+confusionMatrix(factor(test$model2), factor(test$target))
+```
+
+## Model Selection
+
