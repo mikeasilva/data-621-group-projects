@@ -161,6 +161,12 @@ test <- test %>%
          divider = get_divider(rad, nox))
 ```
 
+## Feature Engineering
+```{r}
+
+```
+
+
 ## Model Building
 
 Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
