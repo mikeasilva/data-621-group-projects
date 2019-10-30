@@ -163,8 +163,162 @@ test <- test %>%
 
 ## Feature Engineering
 ```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(rpart)				        # Popular decision tree algorithm
+library(rattle)					# Fancy tree plot
+library(rpart.plot)				# Enhanced tree plots
+library(RColorBrewer)				# Color selection for fancy tree plot
+library(party)					# Alternative decision tree algorithm
+library(partykit)				# Convert rpart object to BinaryTree
+library(caret)
+library(stringr)
+library(data.table)
+library(plyr);
+library(dplyr)
+library(randomForest)
+library(memisc)
+library(plotly)
+library(grid)
+library(fuzzyjoin)
+
+
+
+
+
+df <- read.csv('data/crime-training-data_modified.csv')
+evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
+
+
+density_diff <- function(data,eval_data,var,target,new_column){
+
+data[[paste0(var,"temp")]]<- data[[var]]
+
+eval_data[[paste0(var,"temp")]]<- eval_data[[var]]
+  
+#standardize variable between 0 and 1
+data[[var]] <- (data[[var]] - min(data[[var]]))/(max(data[[var]]) - min(data[[var]]))
+
+eval_data[[var]] <- (eval_data[[var]] - min(eval_data[[var]]))/(max(eval_data[[var]]) - min(eval_data[[var]]))
+
+## Calculate density estimates
+g1 <- ggplot(data, aes(x=data[[var]], group=target, colour=target)) +
+  geom_density(data = data) + xlim(min(data[[var]]), max(data[[var]]))
+gg1 <- ggplot_build(g1)
+# construct the dataset
+x <- gg1$data[[1]]$x[gg1$data[[1]]$group == 1]
+y1 <- gg1$data[[1]]$y[gg1$data[[1]]$group == 1]
+y2 <- gg1$data[[1]]$y[gg1$data[[1]]$group == 2]
+df2 <- data.frame(x = x, ymin = pmin(y1, y2), ymax = pmax(y1, y2), 
+                  side=(y1<y2), ydiff = y2-y1)
+##creating the second graph object
+g3 <- ggplot(df2) +
+  geom_line(aes(x = x, y = ydiff, colour = side)) +
+  geom_area(aes(x = x, y = ydiff, fill = side, alpha = 0.4)) +
+  guides(alpha = FALSE, fill = FALSE)
+
+
+data$join <- data[[var]]
+df2$join <- df2$x
+temp <- difference_left_join(data,df2, by="join", max_dist =.001)
+means <- aggregate(ydiff ~ temp$join.x, temp, mean)
+
+colnames(means) <- c("std_var","density_diff")
+
+
+
+
+new_data <- merge(means,data, by.x ="std_var", by.y =var)
+new_data$std_var <- NULL
+new_data$join <- NULL
+new_data[new_column]<- new_data$density_diff
+new_data$density_diff <- NULL
+###################same thing with eval data ############################
+
+
+eval_data$join <- eval_data[[var]]
+df2$join <- df2$x
+temp <- difference_left_join(eval_data,df2, by="join", max_dist =.001)
+means <- aggregate(ydiff ~ temp$join.x, temp, mean)
+
+##new stuff
+colnames(means) <- c("std_var","density_diff")
+#data["key"] <- (var - min(var))/(max(var) - min(var))
+
+
+eval_data2 <- merge(means,eval_data, by.x ="std_var", by.y =var)
+eval_data2$std_var <- NULL
+eval_data2$join <- NULL
+eval_data2[new_column]<- eval_data2$density_diff
+eval_data2$density_diff <- NULL
+
+eval_data2[[var]] <- eval_data2[[paste0(var,"temp")]]
+eval_data2[[paste0(var,"temp")]]<- NULL
+
+new_data[[var]] <- new_data[[paste0(var,"temp")]]
+new_data[[paste0(var,"temp")]]<- NULL
+
+
+mylist <- list(g1,g3,new_data,eval_data2)
+names(mylist)<- c("dist","dist_diff","new_data_training","new_data_eval")
+return(mylist)
+
+}
+
+
+
+
+
 
 ```
+
+
+
+```{r}
+baseline <- glm(target ~ ., family = binomial(link = "logit"), train)
+summary(baseline)
+test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
+test$baseline_yhat <- predict(baseline, test)
+confusionMatrix(factor(test$baseline), factor(test$target))
+```
+
+
+#Creating Some New Variables
+
+```{r}
+str(train)
+str(test)
+## try it out 
+train <- density_diff(train,test,"nox",train$target,"nox_density")$new_data_training
+train <- density_diff(train,test,"age",train$target,"age_density")$new_data_training 
+train <- density_diff(train,test,"indus",train$target,"indus_density")$new_data_training
+train <- density_diff(train,test,"dis",train$target,"dis_density")$new_data_training
+train <- density_diff(train,test,"rad",train$target,"rad_density")$new_data_training
+train <- density_diff(train,test,"tax",train$target,"tax_density")$new_data_training
+train <- density_diff(train,test,"ptratio",train$target,"ptratio_density")$new_data_training
+train <- density_diff(train,test,"lstat",train$target,"lstat_density")$new_data_training
+train <- density_diff(train,test,"medv",train$target,"medv_density")$new_data_training
+
+
+test<- density_diff(train,test,"nox",train$target,"nox_density")$new_data_eval
+test<- density_diff(train,test,"age",train$target,"age_density")$new_data_training 
+test<- density_diff(train,test,"indus",train$target,"indus_density")$new_data_training
+test<- density_diff(train,test,"dis",train$target,"dis_density")$new_data_training
+test<- density_diff(train,test,"rad",train$target,"rad_density")$new_data_training
+test<- density_diff(train,test,"tax",train$target,"tax_density")$new_data_training
+test<- density_diff(train,test,"ptratio",train$target,"ptratio_density")$new_data_training
+test<- density_diff(train,test,"lstat",train$target,"lstat_density")$new_data_training
+test<- density_diff(train,test,"medv",train$target,"medv_density")$new_data_training
+
+
+str(train)
+str(test)
+
+
+
+```
+
 
 
 ## Model Building
@@ -197,5 +351,37 @@ test$model2_yhat <- predict(model2, test)
 confusionMatrix(factor(test$model2), factor(test$target))
 ```
 
+```{r}
+
+density_models <- glm(target ~ nox_density +indus_density+age_density+dis_density+rad_density+tax_density+ptratio_density+lstat_density+medv_density, family = binomial(link = "logit"), train)
+summary(density_models)
+test$density_models <- ifelse(predict(density_models, test) < 0.5, 0, 1)
+test$density_models_yhat <- predict(density_models, test)
+confusionMatrix(factor(test$density_models), factor(test$target))
+```
+
+
+
+
 ## Model Selection
 
+## pROC Output
+
+```{r}
+library(pROC)
+par(pty = "s")
+roc(test[["target"]], test[["density_models_yhat"]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
+par(pty = "m")
+
+
+library(pROC)
+par(pty = "s")
+roc(test[["target"]], test[["model2_yhat"]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
+par(pty = "m")
+
+
+library(pROC)
+par(pty = "s")
+roc(test[["target"]], test[["model1_yhat"]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
+par(pty = "m")
+```
