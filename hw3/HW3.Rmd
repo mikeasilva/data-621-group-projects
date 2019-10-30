@@ -331,9 +331,10 @@ confusionMatrix(factor(test$model2), factor(test$target))
 
 ```{r}
 
-density_models <- glm(target ~ nox_density +indus_density+age_density+dis_density+rad_density+tax_density+ptratio_density+lstat_density+medv_density, family = binomial(link = "logit"), train)
+
+density_models <- glm(target ~ nox_density +indus_density+age_density+dis_density+rad_density+tax_density+ptratio_density+lstat_density+medv_density+zn_density+rm_density+divider, family = binomial(link = "logit"), train)
 summary(density_models)
-test$density_models <- ifelse(predict(density_models, test) < 0.5, 0, 1)
+test$density_models <- ifelse(predict(density_models, test) < mean(train$target), 0, 1)
 test$density_models_yhat <- predict(density_models, test)
 confusionMatrix(factor(test$density_models), factor(test$target))
 ```
