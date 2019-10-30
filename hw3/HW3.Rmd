@@ -83,7 +83,7 @@ train %>%
   corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
 ```
 
-The following show the how predictors are distributed between the areas with crime rates higher than the median *blue) and below the median (red).  What we are looking for is variables that could split data into two groups.
+The following show the how predictors are distributed between the areas with crime rates higher than the median (blue) and below the median (red).  What we are looking for is variables that could split data into two groups.
 
 ```{r}
 for (var in names(train)){
@@ -114,23 +114,57 @@ Applying occam's razor we will create a baseline that only has one predictor.  A
 ```{r}
 baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
 summary(baseline)
-test$baseline <- ifelse(predict(baseline, test) < 0.5, 0, 1)
-test$baseline2 <- predict(baseline, test)
-confusionMatrix(factor(test$baseline), factor(test$target))
+test$baseline <- ifelse(predict.glm(baseline, test,"response") >= 0.5,1,0)
+cm <- confusionMatrix(factor(test$baseline), factor(test$target),"1")
+results <- tibble(model = "baseline",predictors = 1,F1 = cm$byClass[7],
+                  deviance=baseline$deviance, 
+                  r2 = 1 - baseline$deviance/baseline$null.deviance,
+                  aic=baseline$aic)
+cm
 ```
+
+Our baseline model is ok with an F1 score of `r cm$byClass[7]`.
+
+Now we will try adding all other variables and work backwards to eliminate non-significant predictors:
+
+```{r}
+fullmodel <- glm(target ~ nox + dis, family = binomial(link = "logit"), train)
+summary(fullmodel)
+test$fullmodel <- ifelse(predict.glm(fullmodel, test,"response") < 0.5, 0, 1)
+cm <- confusionMatrix(factor(test$fullmodel), factor(test$target),"1")
+results <- rbind(results,tibble(model = "fullmodel",
+                                predictors = 12,F1 = cm$byClass[7],
+                                deviance=fullmodel$deviance, 
+                                r2 = 1-fullmodel$deviance/fullmodel$null.deviance,
+                                aic=fullmodel$aic))
+cm
+```
+
+The full model has an F1 score is `r cm$byClass[7]`, which is a bit higher than before. However, the new variable doesn't seem to be significant.
+
+After some backward elimination of non-significant predictor variables, we arrive at the following model: 
+
+```{r}
+model1 <- glm(target ~ . -tax -rm -chas - age -zn -indus, 
+              family = binomial(link = "logit"), 
+              train)
+summary(model1)
+test$model1 <- ifelse(predict.glm(model1, test,"response") < 0.5, 0, 1)
+cm <- confusionMatrix(factor(test$model1), factor(test$target),"1")
+results <- rbind(results,tibble(model = "model1",
+                                predictors = 6,F1 = cm$byClass[7],
+                                deviance=model1$deviance, 
+                                r2 = 1-model1$deviance/model1$null.deviance,
+                                aic=model1$aic))
+cm
+```
+
+Looking at our models together, `model1` looks like the best so far based on highest F1 score and lowest deviance & AIC.
+
+```{r}
+kable(results)
+```
+
 
 ## Model Selection
 
-```{r}
-library(FFTrees)
-
-test <- test[names(train)]
-
-fit <- FFTrees(target ~ ., train, test, main = "Crime Rate", decision.labels = c("Below Median", "Above Median"))
-
-for (i in 1:6){
-  p <- plot(fit, data = "test", tree=i)
-  print(p)
-}
-
-```
