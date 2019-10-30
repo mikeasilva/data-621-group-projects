@@ -271,17 +271,23 @@ train <- density_diff(train,test,"tax",train$target,"tax_density")$new_data_trai
 train <- density_diff(train,test,"ptratio",train$target,"ptratio_density")$new_data_training
 train <- density_diff(train,test,"lstat",train$target,"lstat_density")$new_data_training
 train <- density_diff(train,test,"medv",train$target,"medv_density")$new_data_training
-
+train <- density_diff(train,test,"rm",train$target,"rm_density")$new_data_training
+train <- density_diff(train,test,"zn",train$target,"zn_density")$new_data_training
 
 test<- density_diff(train,test,"nox",train$target,"nox_density")$new_data_eval
-test<- density_diff(train,test,"age",train$target,"age_density")$new_data_training 
-test<- density_diff(train,test,"indus",train$target,"indus_density")$new_data_training
-test<- density_diff(train,test,"dis",train$target,"dis_density")$new_data_training
-test<- density_diff(train,test,"rad",train$target,"rad_density")$new_data_training
-test<- density_diff(train,test,"tax",train$target,"tax_density")$new_data_training
-test<- density_diff(train,test,"ptratio",train$target,"ptratio_density")$new_data_training
-test<- density_diff(train,test,"lstat",train$target,"lstat_density")$new_data_training
-test<- density_diff(train,test,"medv",train$target,"medv_density")$new_data_training
+test<- density_diff(train,test,"age",train$target,"age_density")$new_data_eval
+test<- density_diff(train,test,"indus",train$target,"indus_density")$new_data_eval
+test<- density_diff(train,test,"dis",train$target,"dis_density")$new_data_eval
+test<- density_diff(train,test,"rad",train$target,"rad_density")$new_data_eval
+test<- density_diff(train,test,"tax",train$target,"tax_density")$new_data_eval
+test<- density_diff(train,test,"ptratio",train$target,"ptratio_density")$new_data_eval
+test<- density_diff(train,test,"lstat",train$target,"lstat_density")$new_data_eval
+test<- density_diff(train,test,"medv",train$target,"medv_density")$new_data_eval
+test<- density_diff(train,test,"rm",train$target,"rm_density")$new_data_eval
+test<- density_diff(train,test,"zn",train$target,"zn_density")$new_data_eval
+
+str(train)
+str(test)
 
 
 str(train)
