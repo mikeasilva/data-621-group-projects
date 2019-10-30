@@ -57,6 +57,7 @@ evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
 ## Data Exploration
 
 ### Are There Missing Values?
+First we look at the data to see if any variables have missing data:
 
 ```{r}
 missmap(df, main = "Missing vs Observed Values")
@@ -65,7 +66,7 @@ missmap(df, main = "Missing vs Observed Values")
 It looks like we have a complete data set.  No need to impute values.
 
 ### Splitting the Data
-
+Next, we look to split our data between a training set (`train`) and a test data set (`test`). We'll use a 70-30 split between train and test, respectively.
 ```{r}
 set.seed(42)
 train_index <- createDataPartition(df$target, p = .7, list = FALSE, times = 1)
@@ -75,7 +76,7 @@ test <- df[-train_index,]
 
 
 ### Exploratory Data Analysis
-
+Now, let's look at our training data. By looking at a correlation matrix, we can see which variables may be too correlated to be included together in a model as predictor variables. This will help us later during the model selection process.
 
 ```{r}
 train %>% 
@@ -83,7 +84,9 @@ train %>%
   corrplot(., method = "color", type = "upper", tl.col = "black", diag = FALSE)
 ```
 
-The following show the how predictors are distributed between the areas with crime rates higher than the median (blue) and below the median (red).  What we are looking for is variables that could split data into two groups.
+Next we will look at each potential predictor and how it is distributed across the target variable.
+
+The following plots show how predictors are distributed between a positive target variable (areas with crime rates higher than the median, i.e. blue) and a negative target variable (areas with crime rates below the median, i.e. red). What we are looking for is variables that show way to split data into two groups.
 
 ```{r}
 for (var in names(train)){
@@ -103,13 +106,13 @@ for (var in names(train)){
 }
 ```
 
-NOX seems to be the best variable to divide the data into the two groups
+Looking at the plots above, the `nox` variable seems to be the best variable to divide the data into the two groups.
 
 ## Data Preparation
 
 ## Model Building
 
-Applying occam's razor we will create a baseline that only has one predictor.  Any model will have to out preform this simplest model.
+We start by applying occam's razor and create a baseline model that only has one predictor. Any model we build beyond that will have to outperform this simplest model.
 
 ```{r}
 baseline <- glm(target ~ nox, family = binomial(link = "logit"), train)
@@ -125,10 +128,10 @@ cm
 
 Our baseline model is ok with an F1 score of `r cm$byClass[7]`.
 
-Now we will try adding all other variables and work backwards to eliminate non-significant predictors:
+Next we try adding every other variable, to build a full model. From here we can work backwards and eliminate non-significant predictors:
 
 ```{r}
-fullmodel <- glm(target ~ nox + dis, family = binomial(link = "logit"), train)
+fullmodel <- glm(target ~ ., family = binomial(link = "logit"), train)
 summary(fullmodel)
 test$fullmodel <- ifelse(predict.glm(fullmodel, test,"response") < 0.5, 0, 1)
 cm <- confusionMatrix(factor(test$fullmodel), factor(test$target),"1")
@@ -140,7 +143,7 @@ results <- rbind(results,tibble(model = "fullmodel",
 cm
 ```
 
-The full model has an F1 score is `r cm$byClass[7]`, which is a bit higher than before. However, the new variable doesn't seem to be significant.
+The full model has an F1 score is `r cm$byClass[7]`, which is a bit higher than before. However, many variables do not seem to be significant.
 
 After some backward elimination of non-significant predictor variables, we arrive at the following model: 
 
@@ -159,12 +162,10 @@ results <- rbind(results,tibble(model = "model1",
 cm
 ```
 
-Looking at our models together, `model1` looks like the best so far based on highest F1 score and lowest deviance & AIC.
+Since the assignment mentions that the purpose is prediction, we will prefer F1 score as our measure of model success.
 
 ```{r}
 kable(results)
 ```
 
-
-## Model Selection
-
+Looking these three models together, `model1` looks like the best one. Although the full model scored an F1 that was ever-so-slightly higher on our test data set, `model1` has half the predictors and it's scores are almost exactly the same as `fullmodel`.
