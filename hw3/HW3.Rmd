@@ -163,32 +163,9 @@ test <- test %>%
 
 ## Feature Engineering
 ```{r}
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(rpart)				        # Popular decision tree algorithm
-library(rattle)					# Fancy tree plot
-library(rpart.plot)				# Enhanced tree plots
-library(RColorBrewer)				# Color selection for fancy tree plot
-library(party)					# Alternative decision tree algorithm
-library(partykit)				# Convert rpart object to BinaryTree
-library(caret)
-library(stringr)
-library(data.table)
-library(plyr);
-library(dplyr)
-library(randomForest)
-library(memisc)
-library(plotly)
-library(grid)
+
 library(fuzzyjoin)
 
-
-
-
-
-df <- read.csv('data/crime-training-data_modified.csv')
-evaluation <- read.csv("data/crime-evaluation-data_modified.csv")
 
 
 density_diff <- function(data,eval_data,var,target,new_column){
@@ -265,11 +242,6 @@ names(mylist)<- c("dist","dist_diff","new_data_training","new_data_eval")
 return(mylist)
 
 }
-
-
-
-
-
 
 ```
 
