@@ -308,7 +308,7 @@ roc(test[["target"]], test[["model1"]], plot = TRUE, legacy.axes = TRUE, print.a
 par(pty = "m")
 ```
       
-#### Density Model
+#### Density Model 
 ```{r}
 par(pty = "s")
 roc(test[["target"]], test[["density_models_yhat"]], plot = TRUE, legacy.axes = TRUE, print.auc = TRUE)
