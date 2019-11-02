@@ -1,0 +1,98 @@
+---
+title: "DATA 621 Homework #4"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(dplyr)
+library(Amelia)
+library(kableExtra)
+library(caret)
+library(DMwR)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+
+```{r}
+df <- read.csv('./data/insurance_training_data.csv') %>%
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG))
+evaluation <- read.csv("./data/insurance-evaluation-data.csv")
+```
+
+## Data Exploration
+
+### Are There Missing Values?
+First we look at the data to see if any variables have missing data:
+
+```{r}
+missmap(df, main = "Missing vs Observed Values")
+```
+
+There are missing values for the `CAR_AGE` and `YOJ`(Years on Job) variables.  We will fill in the missing variables using KNN.
+
+```{r}
+set.seed(42)
+knn <- knnImputation(df)
+impute_me <- is.na(df$CAR_AGE)
+df[impute_me,"CAR_AGE"] <- knn[impute_me,"CAR_AGE"] 
+impute_me <- is.na(df$YOJ)
+df[impute_me,"YOJ"] <- knn[impute_me,"YOJ"] 
+```
+
+### Splitting the Data
+Next, we look to split our data between a training set (`train`) and a test data set (`test`). We'll use a 70-30 split between train and test, respectively.
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+### First Look at the Data
+
+We will now take our first look at the data to get a sense of what we have.
+
+```{r}
+train %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
