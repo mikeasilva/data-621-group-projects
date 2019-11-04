@@ -12,7 +12,6 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
-library(gridExtra)
 library(dplyr)
 library(Amelia)
 library(kableExtra)
@@ -53,8 +52,10 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 
 ```{r}
 df <- read.csv('./data/insurance_training_data.csv') %>%
-  mutate(TARGET_FLAG = as.factor(TARGET_FLAG))
-evaluation <- read.csv("./data/insurance-evaluation-data.csv")
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
+  select(-INDEX)
+evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
+  select(-INDEX)
 ```
 
 ## Data Exploration
