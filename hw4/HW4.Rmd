@@ -12,6 +12,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(gridExtra)
 library(dplyr)
 library(Amelia)
 library(kableExtra)
@@ -65,7 +66,7 @@ First we look at the data to see if any variables have missing data:
 missmap(df, main = "Missing vs Observed Values")
 ```
 
-There are missing values for the `CAR_AGE` and `YOJ`(Years on Job) variables.  We will fill in the missing variables using KNN.
+There are missing values for the `CAR_AGE`, `YOJ`(Years on Job), and `AGE` variables.  We will fill in the missing variables using KNN.
 
 ```{r}
 set.seed(42)
@@ -73,7 +74,9 @@ knn <- knnImputation(df)
 impute_me <- is.na(df$CAR_AGE)
 df[impute_me,"CAR_AGE"] <- knn[impute_me,"CAR_AGE"] 
 impute_me <- is.na(df$YOJ)
-df[impute_me,"YOJ"] <- knn[impute_me,"YOJ"] 
+df[impute_me,"YOJ"] <- knn[impute_me,"YOJ"]
+impute_me <- is.na(df$AGE)
+df[impute_me,"AGE"] <- knn[impute_me,"AGE"]
 ```
 
 ### Splitting the Data
