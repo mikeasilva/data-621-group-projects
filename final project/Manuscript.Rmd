@@ -1,0 +1,124 @@
+---
+title             : "Fall 2019 DATA 621 Final Project"
+shorttitle        : "Arnouts et al. Final Project"
+author: 
+  - name          : "Corey Arnouts"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "119 W 31st St., New York, NY 10001"
+    email         : "Corey.Arnouts@spsmail.cuny.edu"
+  - name          : "Adam Douglas"
+    affiliation   : "1"
+  - name          : "Jason Givens-Doyle"
+    affiliation   : "1"
+  - name          : "Michael Silva"
+    affiliation   : "1"
+affiliation:
+  - id            : "1"
+    institution   : "CUNY School of Professional Studies"
+authornote: |
+  MS in Data Science Students
+abstract: |
+  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
+  
+  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
+  
+  One sentence clearly stating the **general problem** being addressed by  this particular study.
+  
+  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+  
+  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
+  
+  One or two sentences to put the results into a more **general context**.
+  
+  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
+  
+  
+  <!-- https://tinyurl.com/ybremelq -->
+keywords          : "CoIL Challenge, Logistic Regression"
+wordcount         : "X"
+bibliography      : ["Manuscript.bib"]
+floatsintext      : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : yes
+mask              : no
+draft             : no
+documentclass     : "apa6"
+classoption       : "man"
+output:
+  papaja::apa6_pdf
+---
+
+```{r setup, include = FALSE}
+# Documentation at https://crsh.github.io/papaja_man/
+# If you have no use for TeX beyond rendering R Markdown documents, I recommend you use TinyTex.
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+if(!"papaja" %in% rownames(installed.packages())) devtools::install_github("crsh/papaja")
+library("papaja")
+```
+
+```{r analysis-preferences}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+# Introduction
+```{r eval=FALSE, echo=FALSE}
+#Describe the background and motivation of your problem.
+```
+Busineses use data science to extract insight from data.  It has many practical business applications.  The CoIL Challenge showcases the power data science can bring to bear on fundamental business problems.
+
+The CoIL Challenge was a datamining competition organized by the the Computational Intelligence and Learning Cluster. It was held in the period of March-May 2000.  The COIL Challenge had two tasks:
+
+- Predict which customers are potentially interested in a caravan insurance policy; and
+- Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
+
+In total 43 solutions were submitted. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
+
+In this paper we set out to complete the COIL Challenge ourselves using a logistic regression classifier. **SUMARISE FINDINGS**
+
+# Literature Review
+
+Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+
+# Methodology
+
+Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+
+We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
+
+# Experimentation and Results
+
+Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+
+We used `r cite_r("Manuscript.bib")` for all our analyses.
+
+
+# Discussion and Conclusions
+
+Conclude your findings, limitations, and suggest areas for future work.
+
+\newpage
+
+# References
+```{r create_references}
+r_refs(file = "Manuscript.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id = "refs"></div>
+\endgroup
+
+\newpage
+
+# Appendices
+
+- Supplemental tables and/or figures.
+- R statistical programming code.
