@@ -42,15 +42,15 @@ floatsintext      : no
 figurelist        : no
 tablelist         : no
 footnotelist      : no
-linenumbers       : yes
+linenumbers       : no
 mask              : no
 draft             : no
 documentclass     : "apa6"
 classoption       : "man"
 output:
   papaja::apa6_pdf:
-    citation_package: biblatex
-  html_document: default
+    #citation_package: natbib #biblatex
+  #html_document: default
 ---
 
 ```{r setup, include = FALSE}
