@@ -1,19 +1,31 @@
 ---
 title: "DATA 621 - Final Project"
-author: "Critical Thinking Group 3"
+author:
+  - name: Corey Arnouts
+    affiliation: CUNY School of Professional Studies
+  - name: Adam Douglas
+    affiliation: CUNY School of Professional Studies
+  - name: Jason Givens-Doyle
+    affiliation: CUNY School of Professional Studies
+  - name: Michael Silva
+    affiliation: CUNY School of Professional Studies
+    email: Michael.Silva39@spsmail.cuny.edu
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  rticles::asa_article:
+    citation_package: natbib
+    keep_tex: yes
+    number_sections: no
+    toc: no
+keywords: keywordA, keywordB
+abstract: Use 250 words or less to summarize your problem, methodology, and major outcomes. \newline This is the second line of abstract.
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## Abstract
-
-Use 250 words or less to summarize your problem, methodology, and major outcomes.
-
-**Key Words: Regression**
 
 ## Introduction
 
