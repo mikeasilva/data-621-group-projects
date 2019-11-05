@@ -8,11 +8,9 @@ output:
     toc_depth: 3
     code_folding: "hide"
 ---
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
-library(dplyr)
+library(tidyverse)
 library(Amelia)
 library(kableExtra)
 library(caret)
@@ -49,54 +47,115 @@ knitr::knit_hooks$set( output = function(x, options) {
 knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
-
 ```{r}
-df <- read.csv('./data/insurance_training_data.csv') %>%
+df <- read.csv("./data/insurance_training_data.csv") %>%
   mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
   select(-INDEX)
 evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
   select(-INDEX)
 ```
 
+## Introduction 
+
+We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.  The first is a binary flag where one means a person was in a car crash and zero means they were not.  There are `r df %>% filter(TARGET_FLAG == 1) %>% nrow()` rows with a one flag and `r df %>% filter(TARGET_FLAG == 0) %>% nrow()` with a zero flag.  
+The first objective is to logistic regression classifier to predict if a person was in a car crash.  The second sreponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
+
+
 ## Data Exploration
 
-### Are There Missing Values?
-First we look at the data to see if any variables have missing data:
+
+
+## Data Preparation
+
+```{r}
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+### Fix Data Types
+
+There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.
+
+```{r}
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
+}
+
+fix_data_types <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(INCOME = strip_dollars(INCOME),
+           HOME_VAL = strip_dollars(HOME_VAL),
+           BLUEBOOK = strip_dollars(BLUEBOOK),
+           OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
+    ungroup()
+}
+
+df <- fix_data_types(df)
+evaluation <- fix_data_types(evaluation)
+```
+
 
 ```{r}
 missmap(df, main = "Missing vs Observed Values")
 ```
 
-There are missing values for the `CAR_AGE`, `YOJ`(Years on Job), and `AGE` variables.  We will fill in the missing variables using KNN.
-
 ```{r}
-set.seed(42)
-knn <- knnImputation(df)
-impute_me <- is.na(df$CAR_AGE)
-df[impute_me,"CAR_AGE"] <- knn[impute_me,"CAR_AGE"] 
-impute_me <- is.na(df$YOJ)
-df[impute_me,"YOJ"] <- knn[impute_me,"YOJ"]
-impute_me <- is.na(df$AGE)
-df[impute_me,"AGE"] <- knn[impute_me,"AGE"]
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
 ```
 
-### Splitting the Data
-Next, we look to split our data between a training set (`train`) and a test data set (`test`). We'll use a 70-30 split between train and test, respectively.
+### Fix Missing Values
+There are missing values.  We will fill in the missing variables using KNN.
+
+```{r, null_prefix = TRUE}
+set.seed(42)
+#knn <- df %>%
+#  select(-TARGET_FLAG, -TARGET_AMT) %>%
+#  na.omit() %>%
+#  knnImputation()
+
+for(var in names(df)){
+  impute_me <- is.na(df[[var]])
+  if (nrow(df[impute_me,]) > 0){
+    print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
+    #df[impute_me, var] <- knn[impute_me, var] 
+  }
+}
+```
+
+### Feature Creation
+
+We will create a log transformed income and home value feature.  We will also create an average claim amount that will hopefully track better with the `TARGET_AMT` variable.
+
+```{r}
+feature_creation <- function(d){
+  d %>%
+    rowwise() %>%
+    mutate(LOG_INCOME = log(INCOME + 1),
+           LOG_HOME_VAL = log(HOME_VAL + 1),
+           AVG_CLAIM = ifelse(CLM_FREQ > 0, OLDCLAIM / CLM_FREQ, 0)) %>%
+    ungroup()
+}
+
+df <- feature_creation(df)
+evaluation <- feature_creation(evaluation)
+```
+
+### Creating Training/Test Data Sets
+
+Now that we have a complete data set we will split the data into a training (`train`) and test set (`test`). We'll use a 70-30 split between train and test, respectively.
 
 ```{r}
 set.seed(42)
 train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
 train <- df[train_index,]
 test <- df[-train_index,]
-```
-
-### First Look at the Data
-
-We will now take our first look at the data to get a sense of what we have.
-
-```{r}
-train %>%
-  summary() %>%
-  kable() %>%
-  kable_styling()
 ```
