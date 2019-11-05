@@ -1,0 +1,45 @@
+---
+title: "DATA 621 - Final Project"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+Use 250 words or less to summarize your problem, methodology, and major outcomes.
+
+**Key Words: Regression**
+
+## Introduction
+
+Describe the background and motivation of your problem.
+
+## Literature Review
+
+Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+
+## Methodology
+
+Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+
+## Experimentation and Results
+
+Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+
+## Discussion and Conclusions
+
+Conclude your findings, limitations, and suggest areas for future work.
+
+## References
+
+Be sure to cite all references used in the report (APA format).
+
+## Appendices
+
+- Supplemental tables and/or figures.
+- R statistical programming code. 
