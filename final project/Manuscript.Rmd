@@ -1,6 +1,6 @@
 ---
-title             : "Fall 2019 DATA 621 Final Project"
-shorttitle        : "Arnouts et al. Final Project"
+title             : "CoIL Challenge Submission"
+shorttitle        : "CoIL Challenge Submission"
 author: 
   - name          : "Corey Arnouts"
     affiliation   : "1"
@@ -50,7 +50,7 @@ classoption       : "man"
 output:
   papaja::apa6_pdf:
     #citation_package: natbib #biblatex
-  #html_document: default
+  html_document: default
 ---
 
 ```{r setup, include = FALSE}
@@ -69,23 +69,26 @@ knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 ```
 
 # Introduction
+
 ```{r eval=FALSE, echo=FALSE}
 #Describe the background and motivation of your problem.
 ```
-Busineses use data science to extract insight from data.  It has many practical business applications.  The CoIL Challenge showcases the power data science can bring to bear on fundamental business problems.
+Busineses use data science to extract insight from data.  It has many practical business applications.  The Computational Intelligence and Learning (CoIL) Challenge showcases the power data science can bring to bear on fundamental business problems.
 
-The CoIL Challenge was a datamining competition organized by the the Computational Intelligence and Learning Cluster. It was held in the period of March-May 2000.  The COIL Challenge had two tasks:
+The CoIL Challenge was a datamining competition held from March 17 to May 8 in 2000.  Participants could:
 
 - Predict which customers are potentially interested in a caravan insurance policy; and
 - Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
 
-In total 43 solutions were submitted. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
+In total 147 participants registered and 43 submitted solutions [@Putten-2000]. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
 
-In this paper we set out to complete the COIL Challenge ourselves using a logistic regression classifier. **SUMARISE FINDINGS**
+In this paper we set out to complete the prediction part of the COIL Challenge ourselves using a logistic regression classifier. **SUMARISE FINDINGS**
 
 # Literature Review
 
 Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+
+The maximum number of policyowners that could be found was 238, the winning model selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks)and 118 (linear!) policy owners. [@Putten-2000]
 
 # Methodology
 
@@ -123,4 +126,8 @@ r_refs(file = "Manuscript.bib")
 # Appendices
 
 - Supplemental tables and/or figures.
-- R statistical programming code.
+
+## R statistical programming code.
+
+```{r source, code=readLines("CoIL.R")}
+```

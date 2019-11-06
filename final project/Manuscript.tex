@@ -23,7 +23,7 @@
 }{}
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={Fall 2019 DATA 621 Final Project},
+            pdftitle={CoIL Challenge Submission},
             pdfauthor={Corey Arnouts, Adam Douglas, Jason Givens-Doyle, \& Michael Silva},
             pdfkeywords={CoIL Challenge, Logistic Regression},
             pdfborder={0 0 0},
@@ -63,11 +63,11 @@
 \def\footnote{\protect\rmarkdownfootnote}
 
 
-  \title{Fall 2019 DATA 621 Final Project}
+  \title{CoIL Challenge Submission}
     \author{Corey Arnouts\textsuperscript{1}, Adam Douglas\textsuperscript{1}, Jason Givens-Doyle\textsuperscript{1}, \& Michael Silva\textsuperscript{1}}
     \date{}
   
-\shorttitle{Arnouts et al. Final Project}
+\shorttitle{CoIL Challenge Submission}
 \affiliation{
 \vspace{0.5cm}
 \textsuperscript{1} CUNY School of Professional Studies}
@@ -127,9 +127,9 @@ Two or three sentences to provide a \textbf{broader perspective}, readily compre
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-Busineses use data science to extract insight from data. It has many practical business applications. The CoIL Challenge showcases the power data science can bring to bear on fundamental business problems.
+Busineses use data science to extract insight from data. It has many practical business applications. The Computational Intelligence and Learning (CoIL) Challenge showcases the power data science can bring to bear on fundamental business problems.
 
-The CoIL Challenge was a datamining competition organized by the the Computational Intelligence and Learning Cluster. It was held in the period of March-May 2000. The COIL Challenge had two tasks:
+The CoIL Challenge was a datamining competition held from March 17 to May 8 in 2000. Participants could:
 
 \begin{itemize}
 \tightlist
@@ -139,14 +139,16 @@ The CoIL Challenge was a datamining competition organized by the the Computation
   Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
 \end{itemize}
 
-In total 43 solutions were submitted. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
+In total 147 participants registered and 43 submitted solutions (Putten, Ruiter, \& Someren, 2000). The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
 
-In this paper we set out to complete the COIL Challenge ourselves using a logistic regression classifier. \textbf{SUMARISE FINDINGS}
+In this paper we set out to complete the prediction part of the COIL Challenge ourselves using a logistic regression classifier. \textbf{SUMARISE FINDINGS}
 
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
 
 Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+
+The maximum number of policyowners that could be found was 238, the winning model selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks)and 118 (linear!) policy owners. (Putten et al., 2000)
 
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
@@ -160,7 +162,7 @@ We report how we determined our sample size, all data exclusions (if any), all m
 
 Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
 
-We used R (Version 3.6.1; R Core Team, 2019) and the R-package \emph{papaja} (Version 0.1.0.9842; Aust \& Barth, 2018) for all our analyses.
+We used R (Version 3.6.1; R Core Team, 2019) and the R-package \emph{\}papaja} {[}@\}R-papaja{]} for all our analyses.
 
 \hypertarget{discussion-and-conclusions}{%
 \section{Discussion and Conclusions}\label{discussion-and-conclusions}}
@@ -177,8 +179,8 @@ Conclude your findings, limitations, and suggest areas for future work.
 \setlength{\leftskip}{0.5in}
 
 \hypertarget{refs}{}
-\leavevmode\hypertarget{ref-R-papaja}{}%
-Aust, F., \& Barth, M. (2018). \emph{papaja: Create APA manuscripts with R Markdown}. Retrieved from \url{https://github.com/crsh/papaja}
+\leavevmode\hypertarget{ref-Putten-2000}{}%
+Putten, P., Ruiter, M., \& Someren, M. (2000). CoIL challenge 2000 tasks and results: Predicting and explaining caravan policy ownership.
 
 \leavevmode\hypertarget{ref-R-base}{}%
 R Core Team. (2019). \emph{R: A language and environment for statistical computing}. Vienna, Austria: R Foundation for Statistical Computing. Retrieved from \url{https://www.R-project.org/}
@@ -194,9 +196,10 @@ R Core Team. (2019). \emph{R: A language and environment for statistical computi
 \tightlist
 \item
   Supplemental tables and/or figures.
-\item
-  R statistical programming code.
 \end{itemize}
+
+\hypertarget{r-statistical-programming-code.}{%
+\subsection{R statistical programming code.}\label{r-statistical-programming-code.}}
 
 
 \end{document}
