@@ -11,6 +11,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
 library(tidyverse)
+require(gridExtra)
 library(Amelia)
 library(kableExtra)
 library(caret)
@@ -55,6 +56,61 @@ df <- read.csv("./data/insurance_training_data.csv") %>%
   select(-INDEX)
 evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
   select(-INDEX)
+
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
+}
+
+hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- df[[var]]
+  }
+  plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+    geom_jitter() +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  plot_2 <- ggplot(df, aes(X, TARGET_AMT, color = TARGET_FLAG)) +
+    geom_point() +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  grid.arrange(plot_1, plot_2, ncol=2)
+}
+
+hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- df[[var]]
+  }
+  plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+    geom_jitter() +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  plot_2 <- df %>%
+    filter(TARGET_FLAG == 1) %>%
+    ggplot(., aes(X, TARGET_AMT)) +
+      geom_boxplot() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank())
+  
+  grid.arrange(plot_1, plot_2, ncol=2)
+}
 ```
 
 ## Introduction 
@@ -72,7 +128,7 @@ df %>%
 
 The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The second reponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
 
-The second objective will be to train a regression model to predict the cost of a craash, if one occurred.  
+The second objective will be to train a regression model to predict the cost of a crash, if one occurred.  
 
 ```{r, echo=FALSE}
 df %>% filter(TARGET_FLAG == 1) %>%
@@ -89,6 +145,66 @@ df %>% filter(TARGET_FLAG == 1) %>%
 Looking at the distribution of the `TARGET_AMT` variable, we can see that the variable is considerably right-skewed. Thus, a LOG transform might be best here.
 
 ## Data Exploration
+
+We will first look at the summary statistics for the data
+
+```{r}
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+There are some missing values that we will need to deal with.  Let's look at the predictors to see how well they predict if there is an accident (plot on the left) and how much it would cost (plot on the right).  Numeric variables will get scatterplots, while categorical will get box plots
+
+### AGE
+
+**Theoretical Effect**
+Very young people tend to be risky.  Maybe very old people also.
+
+```{r} 
+hw4_plot(df, "AGE")
+```
+
+**Observed Effect**
+There is very little information encapsulated in the age of the person.
+
+
+### BLUEBOOK
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_plot(df, "BLUEBOOK", TRUE)
+```
+
+**Observed Effect**
+The plot suggests that people with low value and high value vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's value.
+
+### CAR_AGE
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_plot(df, "CAR_AGE")
+```
+
+**Observed Effect**
+The plot suggests that people with old or new vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's age.  *There is an observation with a negative value that will need to be cleaned up.*
+
+### CAR_TYPE
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_categorical_plot(df, "CAR_TYPE")
+```
+
+**Observed Effect**
+The plot suggests that the type of vehicle has no effect on the probability of being in an accident, and little effect of the cost.
 
 Looking at the data, we can see that there are some missing values:
 
@@ -146,19 +262,19 @@ df %>%
 There are missing values.  We will fill in the missing variables using KNN.
 
 ```{r, null_prefix = TRUE}
-set.seed(42)
-knn <- df %>%
-  select(-TARGET_FLAG, -TARGET_AMT, is.numeric()) %>%
-  #na.omit() %>%
-  knnImputation()
-
-for(var in names(df)){
-  impute_me <- is.na(df[[var]])
-  if (nrow(df[impute_me,]) > 0){
-    print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
-    #df[impute_me, var] <- knn[impute_me, var] 
-  }
-}
+# set.seed(42)
+# knn <- df %>%
+#   select(-TARGET_FLAG, -TARGET_AMT, is.numeric()) %>%
+#   #na.omit() %>%
+#   knnImputation()
+# 
+# for(var in names(df)){
+#   impute_me <- is.na(df[[var]])
+#   if (nrow(df[impute_me,]) > 0){
+#     print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
+#     #df[impute_me, var] <- knn[impute_me, var] 
+#   }
+# }
 ```
 
 
