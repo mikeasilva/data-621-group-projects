@@ -1,0 +1,161 @@
+---
+title: "DATA 621 Homework #4"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(Amelia)
+library(kableExtra)
+library(caret)
+library(DMwR)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+```{r}
+df <- read.csv("./data/insurance_training_data.csv") %>%
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
+  select(-INDEX)
+evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
+  select(-INDEX)
+```
+
+## Introduction 
+
+We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.  The first is a binary flag where one means a person was in a car crash and zero means they were not.  There are `r df %>% filter(TARGET_FLAG == 1) %>% nrow()` rows with a one flag and `r df %>% filter(TARGET_FLAG == 0) %>% nrow()` with a zero flag.  
+The first objective is to logistic regression classifier to predict if a person was in a car crash.  The second sreponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
+
+
+## Data Exploration
+
+
+
+## Data Preparation
+
+```{r}
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+### Fix Data Types
+
+There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.
+
+```{r}
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
+}
+
+fix_data_types <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(INCOME = strip_dollars(INCOME),
+           HOME_VAL = strip_dollars(HOME_VAL),
+           BLUEBOOK = strip_dollars(BLUEBOOK),
+           OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
+    ungroup()
+}
+
+df <- fix_data_types(df)
+evaluation <- fix_data_types(evaluation)
+```
+
+
+```{r}
+missmap(df, main = "Missing vs Observed Values")
+```
+
+```{r}
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+### Fix Missing Values
+There are missing values.  We will fill in the missing variables using KNN.
+
+```{r, null_prefix = TRUE}
+set.seed(42)
+#knn <- df %>%
+#  select(-TARGET_FLAG, -TARGET_AMT) %>%
+#  na.omit() %>%
+#  knnImputation()
+
+for(var in names(df)){
+  impute_me <- is.na(df[[var]])
+  if (nrow(df[impute_me,]) > 0){
+    print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
+    #df[impute_me, var] <- knn[impute_me, var] 
+  }
+}
+```
+
+### Feature Creation
+
+We will create a log transformed income and home value feature.  We will also create an average claim amount that will hopefully track better with the `TARGET_AMT` variable.
+
+```{r}
+feature_creation <- function(d){
+  d %>%
+    rowwise() %>%
+    mutate(LOG_INCOME = log(INCOME + 1),
+           LOG_HOME_VAL = log(HOME_VAL + 1),
+           AVG_CLAIM = ifelse(CLM_FREQ > 0, OLDCLAIM / CLM_FREQ, 0)) %>%
+    ungroup()
+}
+
+df <- feature_creation(df)
+evaluation <- feature_creation(evaluation)
+```
+
+### Creating Training/Test Data Sets
+
+Now that we have a complete data set we will split the data into a training (`train`) and test set (`test`). We'll use a 70-30 split between train and test, respectively.
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
