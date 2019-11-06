@@ -15,6 +15,8 @@ library(Amelia)
 library(kableExtra)
 library(caret)
 library(DMwR)
+library(scales)
+library(RColorBrewer)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -57,13 +59,44 @@ evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
 
 ## Introduction 
 
-We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.  The first is a binary flag where one means a person was in a car crash and zero means they were not.  There are `r df %>% filter(TARGET_FLAG == 1) %>% nrow()` rows with a one flag and `r df %>% filter(TARGET_FLAG == 0) %>% nrow()` with a zero flag.  
-The first objective is to logistic regression classifier to predict if a person was in a car crash.  The second sreponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
+We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.  The first is a binary flag where one means a person was in a car crash and zero means they were not.  There are `r df %>% filter(TARGET_FLAG == 1) %>% nrow()` rows with a one flag and `r df %>% filter(TARGET_FLAG == 0) %>% nrow()` with a zero flag.
 
+```{r, echo=FALSE}
+df %>% 
+  ggplot(aes(x=TARGET_FLAG,fill=TARGET_FLAG)) +
+  geom_bar() + scale_y_continuous() + scale_fill_brewer(palette="Set1") +
+  theme_light() +
+  theme(legend.position = "none") +
+  labs(x="TARGET_FLAG", y="# Observations")
+```
+
+The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The second reponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
+
+The second objective will be to train a regression model to predict the cost of a craash, if one occurred.  
+
+```{r, echo=FALSE}
+df %>% filter(TARGET_FLAG == 1) %>%
+  ggplot(aes(x=TARGET_AMT)) + geom_density() +
+  geom_vline(aes(xintercept = mean(TARGET_AMT)), lty=2, col="red") +
+  geom_label(aes(x=mean(TARGET_AMT),y=1,label="mu"),parse=T) +
+  geom_vline(aes(xintercept = median(TARGET_AMT)), lty=2, col="darkgreen") +
+  geom_label(aes(x=median(TARGET_AMT),y=.5,label="median")) +
+  scale_x_log10(labels=comma) + theme_light() +
+  labs(title="TARGET_AMT Density Plot", caption="x-axis is log 10 scale",
+       y="Density", x="LOG(TARGET_AMT)")
+```
+
+Looking at the distribution of the `TARGET_AMT` variable, we can see that the variable is considerably right-skewed. Thus, a LOG transform might be best here.
 
 ## Data Exploration
 
+Looking at the data, we can see that there are some missing values:
 
+```{r}
+missmap(df, main = "Missing vs Observed Values")
+```
+
+Specifically, there `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable are missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, but only `r df %>% filter(is.na(YOJ),is.na(CAR_AGE)) %>% nrow()` observations missing both of these varables. So, if imputation is not viable here, we will lose as many as 488 observations out of the 8161 in our training set (or about 6%).
 
 ## Data Preparation
 
@@ -100,10 +133,7 @@ df <- fix_data_types(df)
 evaluation <- fix_data_types(evaluation)
 ```
 
-
-```{r}
-missmap(df, main = "Missing vs Observed Values")
-```
+Now that we have fixed the variables, we can look at a sumamry of the data:
 
 ```{r}
 df %>%
@@ -117,10 +147,10 @@ There are missing values.  We will fill in the missing variables using KNN.
 
 ```{r, null_prefix = TRUE}
 set.seed(42)
-#knn <- df %>%
-#  select(-TARGET_FLAG, -TARGET_AMT) %>%
-#  na.omit() %>%
-#  knnImputation()
+knn <- df %>%
+  select(-TARGET_FLAG, -TARGET_AMT, is.numeric()) %>%
+  #na.omit() %>%
+  knnImputation()
 
 for(var in names(df)){
   impute_me <- is.na(df[[var]])
@@ -130,6 +160,7 @@ for(var in names(df)){
   }
 }
 ```
+
 
 ### Feature Creation
 
