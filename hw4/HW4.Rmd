@@ -72,6 +72,7 @@ hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
   }
   plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
     geom_jitter() +
+    scale_color_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
           axis.title.x = element_blank(),
@@ -79,6 +80,7 @@ hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
   
   plot_2 <- ggplot(df, aes(X, TARGET_AMT, color = TARGET_FLAG)) +
     geom_point() +
+    scale_color_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
           axis.title.x = element_blank(),
@@ -91,10 +93,11 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
   if(strip_dollar_signs){
     df$X <- strip_dollars(df[[var]])
   } else {
-    df$X <- df[[var]]
+    df$X <- as.factor(as.character(df[[var]]))
   }
   plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
     geom_jitter() +
+    scale_color_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
           axis.title.x = element_blank(),
@@ -102,8 +105,9 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
   
   plot_2 <- df %>%
     filter(TARGET_FLAG == 1) %>%
-    ggplot(., aes(X, TARGET_AMT)) +
+    ggplot(., aes(X, TARGET_AMT, color = X)) +
       geom_boxplot() +
+      scale_color_brewer(palette="Dark2") + #Paired
       theme_minimal() +
       theme(legend.position = "none",
             axis.title.x = element_blank(),
@@ -205,6 +209,41 @@ hw4_categorical_plot(df, "CAR_TYPE")
 
 **Observed Effect**
 The plot suggests that the type of vehicle has no effect on the probability of being in an accident, and little effect of the cost.
+
+### CAR_USE
+
+**Theoretical Effect**
+Commercian vehicles are driven more, so might increase probability of collision.
+
+```{r} 
+hw4_categorical_plot(df, "CAR_USE")
+```
+
+**Observed Effect**
+The plot suggests that the use does not increase or decrease the probability of being in an accident or the amount of the claim.
+
+### CLM_FREQ
+
+**Theoretical Effect**
+The more claims you filed in the past, the more you are likely to file in the future.
+
+```{r} 
+hw4_categorical_plot(df, "CLM_FREQ")
+```
+
+**Observed Effect**
+Looks like there are few people who signed up for the frequent accident club.  All jokes aside, the theoretical effect is not observed in the data.
+
+### EDUCATION
+
+**Theoretical Effect**
+Unknown effect, but in theory more educated people tend to drive more safely
+```{r} 
+hw4_categorical_plot(df, "EDUCATION")
+```
+
+**Observed Effect**
+The theoretical effect has no basis and is somewhat elitist.
 
 Looking at the data, we can see that there are some missing values:
 
