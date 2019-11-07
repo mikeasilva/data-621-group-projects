@@ -70,8 +70,16 @@ hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
   } else {
     df$X <- df[[var]]
   }
-  plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+  plot_1_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
     geom_jitter() +
+    scale_color_brewer(palette="Set1") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  plot_1 <- ggplot(df, aes(X, color = TARGET_FLAG)) +
+    geom_density() + 
     scale_color_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
@@ -95,14 +103,23 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
   } else {
     df$X <- as.factor(as.character(df[[var]]))
   }
-  plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+  plot_1_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
     geom_jitter() +
     scale_color_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
           axis.title.x = element_blank(),
           axis.title.y = element_blank())
-  
+  plot_1 <- df %>%
+    group_by(X, TARGET_FLAG) %>%
+    tally() %>%
+    ggplot(.) +
+    geom_bar(aes(X, n, fill = TARGET_FLAG), stat="identity") +
+    scale_fill_brewer(palette="Set1") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
   plot_2 <- df %>%
     filter(TARGET_FLAG == 1) %>%
     ggplot(., aes(X, TARGET_AMT, color = X)) +
@@ -114,6 +131,21 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
             axis.title.y = element_blank())
   
   grid.arrange(plot_1, plot_2, ncol=2)
+}
+
+hw4_target_table <- function(df, var, strip_dollar_signs = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- df[[var]]
+  }
+  df %>%
+    group_by(X, TARGET_FLAG) %>%
+    tally() %>%
+    spread(TARGET_FLAG, n) %>%
+    rename(Variable = X) %>%
+    kable() %>%
+    kable_styling()
 }
 ```
 
@@ -205,6 +237,7 @@ Unknown effect on probability of collision, but probably effects the payout if t
 
 ```{r} 
 hw4_categorical_plot(df, "CAR_TYPE")
+hw4_target_table(df, "CAR_TYPE")
 ```
 
 **Observed Effect**
@@ -217,6 +250,7 @@ Commercian vehicles are driven more, so might increase probability of collision.
 
 ```{r} 
 hw4_categorical_plot(df, "CAR_USE")
+hw4_target_table(df, "CAR_USE")
 ```
 
 **Observed Effect**
@@ -229,6 +263,7 @@ The more claims you filed in the past, the more you are likely to file in the fu
 
 ```{r} 
 hw4_categorical_plot(df, "CLM_FREQ")
+hw4_target_table(df, "CLM_FREQ")
 ```
 
 **Observed Effect**
@@ -238,12 +273,81 @@ Looks like there are few people who signed up for the frequent accident club.  A
 
 **Theoretical Effect**
 Unknown effect, but in theory more educated people tend to drive more safely
+
 ```{r} 
 hw4_categorical_plot(df, "EDUCATION")
+hw4_target_table(df, "EDUCATION")
 ```
 
 **Observed Effect**
 The theoretical effect has no basis and is somewhat elitist.
+
+
+### HOMEKIDS
+
+**Theoretical Effect**
+Unknown effect
+
+```{r} 
+hw4_categorical_plot(df, "HOMEKIDS")
+hw4_target_table(df, "HOMEKIDS")
+```
+
+**Observed Effect**
+It's interesting to note that those with kids have a 0.34 probability of being in an accident.  Those without kids have a 0.22 probability of being in an accident.  This may be useful.
+
+### HOME_VAL
+
+**Theoretical Effect**
+In theory, home owners tend to drive more responsibly.
+
+```{r} 
+hw4_plot(df, "HOME_VAL", TRUE)
+```
+
+**Observed Effect**
+There are a lot of zero values.  I am assuming that it is a zero because they are renters.
+
+### INCOME
+
+**Theoretical Effect**
+In theory, rich people trend to get into fewer crashes.
+
+```{r} 
+hw4_plot(df, "INCOME", TRUE)
+```
+
+**Observed Effect**
+There are a lot of zero values.  I am assuming that it is a zero because they are renters.
+
+
+### JOB
+
+**Theoretical Effect**
+In theory, white collar jobs tend to be safer
+
+```{r} 
+hw4_categorical_plot(df, "JOB")
+hw4_target_table(df, "JOB")
+```
+
+**Observed Effect**
+There is a 0.21 probability for white collar job holders being in an accident.  there's a 0.34 probability for the blue collar jobs.  There may be some truth to the theoretical effect.
+
+
+### KIDSDRIV
+
+**Theoretical Effect**
+When teenagers drive your car, ou are more likely to get into crashes
+
+```{r} 
+hw4_categorical_plot(df, "KIDSDRIV")
+hw4_target_table(df, "KIDSDRIV")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
 
 Looking at the data, we can see that there are some missing values:
 
