@@ -348,6 +348,32 @@ hw4_target_table(df, "KIDSDRIV")
 **Observed Effect**
 INSERT TEXT HERE
 
+### MSTATUS
+
+**Theoretical Effect**
+In theory, married people drive more safely
+
+```{r} 
+hw4_categorical_plot(df, "MSTATUS")
+hw4_target_table(df, "MSTATUS")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### MVR_PTS
+
+**Theoretical Effect**
+If you get lots of traffic tickets, you trend to get into more crashes
+
+```{r} 
+hw4_categorical_plot(df, "MVR_PTS")
+hw4_target_table(df, "MVR_PTS")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
 
 Looking at the data, we can see that there are some missing values:
 
