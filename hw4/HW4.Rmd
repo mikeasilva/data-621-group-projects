@@ -490,30 +490,6 @@ test <- df[-train_index,]
 
 
 
-```{r}
-library(lme4)
-glm <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train, family=poisson) 
-summary(glm)
-
-test$Prediction =predict.glm(glm, newdata=test, type="response")
-
-cor(test$TARGET_AMT, test$Prediction)
-
-glm2 <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train) 
-summary(glm2)
-
-test$Prediction2 =predict.glm(glm2, newdata=test, type="response")
-
-cor(test$TARGET_AMT, test$Prediction)
-
-
-glm3 <- glm(TARGET_AMT ~ AGE+PARENT1+MSTATUS+JOB+BLUEBOOK+TIF+CAR_AGE_density+URBANICITY+MVR_PTS+REVOKED+CLM_FREQ+OLDCLAIM , data= train, family=poisson) 
-summary(glm3)
-
-test$Prediction =predict.glm(glm3, newdata=test, type="response")
-
-cor(test$TARGET_AMT, test$Prediction)
-```
 
 
 
@@ -554,7 +530,32 @@ density_diff(train,test,"TRAVTIME",train$TARGET_FLAG_BOOL,"TRAVTIME_density")$di
 ##Test out Some Models
 
 ```{r}
+library(lme4)
+glm <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train, family=poisson) 
+summary(glm)
 
+test$Prediction =predict.glm(glm, newdata=test, type="response")
+
+cor(test$TARGET_AMT, test$Prediction)
+
+glm2 <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train) 
+summary(glm2)
+
+test$Prediction2 =predict.glm(glm2, newdata=test, type="response",family=poisson)
+
+cor(test$TARGET_AMT, test$Prediction2)
+
+ggplot(test, aes(x=Prediction2, y=TARGET_AMT)) +
+     geom_point(shape=1) +    # Use hollow circles
+     geom_smooth()            # Add a loess smoothed fit curve with confidence region
+
+
+glm3 <- glm(TARGET_AMT ~ AGE+PARENT1+MSTATUS+JOB+BLUEBOOK+TIF+CAR_AGE_density+URBANICITY+MVR_PTS+REVOKED , data= train, family=poisson) 
+summary(glm3)
+
+test$Prediction3 =predict.glm(glm3, newdata=test, type="response")
+
+cor(test$TARGET_AMT, test$Prediction3)
 ```
 
 
