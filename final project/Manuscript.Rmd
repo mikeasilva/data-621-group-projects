@@ -1,6 +1,6 @@
 ---
-title             : "CoIL Challenge Submission"
-shorttitle        : "CoIL Challenge Submission"
+title             : "A Logistic Regression Qpproach to CoIL Challenge 2000"
+shorttitle        : " "
 author: 
   - name          : "Corey Arnouts"
     affiliation   : "1"
@@ -15,26 +15,18 @@ author:
     affiliation   : "1"
 affiliation:
   - id            : "1"
-    institution   : "CUNY School of Professional Studies"
-authornote: |
-  MS in Data Science Students
+    institution   : "MS in Data Science Students CUNY School of Professional Studies"
 abstract: |
-  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
-  
-  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
-  
-  One sentence clearly stating the **general problem** being addressed by  this particular study.
-  
-  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+  A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
+  <!-- https://tinyurl.com/ybremelq 
+    One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
   
   Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
   
   One or two sentences to put the results into a more **general context**.
   
   Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
-  
-  
-  <!-- https://tinyurl.com/ybremelq -->
+  -->
 keywords          : "CoIL Challenge, Logistic Regression"
 wordcount         : "X"
 bibliography      : ["Manuscript.bib"]
@@ -69,43 +61,101 @@ knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 ```
 
 # Introduction
+<!-- Describe the background and motivation of your problem.-->
 
-```{r eval=FALSE, echo=FALSE}
-#Describe the background and motivation of your problem.
-```
-Busineses use data science to extract insight from data.  It has many practical business applications.  The Computational Intelligence and Learning (CoIL) Challenge showcases the power data science can bring to bear on fundamental business problems.
+Businesses use data science to extract insights from data.  It has many practical business applications.  Identifying households to include in a marketing campaign is one application.  One example using real world data is the Computational Intelligence and Learning (CoIL) Challenge. The CoIL Challenge competition was held from March 17 to May 8 in 2000.  The challenge is to:
 
-The CoIL Challenge was a datamining competition held from March 17 to May 8 in 2000.  Participants could:
+1.  Identify potential customers for an insurance policy; and
 
-- Predict which customers are potentially interested in a caravan insurance policy; and
-- Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
+2.  Provide a description of this customer base.
 
-In total 147 participants registered and 43 submitted solutions [@Putten-2000]. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
-
-In this paper we set out to complete the prediction part of the COIL Challenge ourselves using a logistic regression classifier. **SUMARISE FINDINGS**
+In total 147 participants registered and 43 submitted solutions [@Putten]. In this paper we set out to complete the first part of the COIL Challenge. **SUMARISE FINDINGS?**
 
 # Literature Review
 
-Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
 
-The maximum number of policyowners that could be found was 238, the winning model selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks)and 118 (linear!) policy owners. [@Putten-2000]
+Participants used a variety of approaches in formulating their submissions including: Artificial Neural Networks [@Kim], Naïve Bayes [@Elkan].
+
+
+The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
+
+<!--
+Other solutions (in alphabetical order):
+
+3 Achim Lewandowski. How to detect potential customers. [ps.gz], [pdf]
+
+4 Alexander Seewald. CoIL Challenge 2000 Submitted Solution. [ps.gz], [pdf]
+
+5 A.P. White and W.Z. Liu. The CoIL Challenge: an Application of Classification Trees with Bootstrap Aggregation. [ps.gz], [pdf]
+
+6 Andrew Greenyer. Coil 2000 Competition. The use of a learning classifier system JXCS. [ps.gz], [pdf]
+
+7 Arnold Koudijs. CoIL Challenge 2000 Submission for the Description Task. [ps.gz], [pdf]
+
+8 William M. Crocoll. Artificial Neural Network Portion of Coil Study. [ps.gz], [pdf]
+
+9 Chris Leckie and Herman Ferra. COIL Challenge 2000 Description Task. [ps.gz], [pdf]
+
+10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf]
+
+11 Dragan Gamberger. Solution based on ILLM confirmation rule. [ps.gz], [pdf]
+
+12 János Abonyi, Hans Roubos. A Simple Fuzzy Classifier based on Inconsistency Analysis of Labeled Data. [ps.gz],[pdf]
+
+13 Jonathan Carter. Coil 2000 Challenge Submission: Genetic Algorithms and Hill-climbers. [ps.gz], [pdf]
+
+14 Juha Vesanto and Janne Sinkkonen. Submission for the CoIL Challenge 2000. [ps.gz], [pdf]
+
+15 Mark-André Krogel. A Data Mining Case Study. [ps.gz],[pdf]
+
+16 Michel Bera and Bertrand Lamy. Kxen at CoIL Challenge 2000. [ps.gz], [pdf]
+
+17 Paul Rickets. CoIL Challenge 2000 submission. [ps.gz], [pdf]
+
+18 Petr Mikšovský, Jirí Klema. COIL Challenge 2000. [ps.gz], [pdf]
+
+19 Petri Kontkanen. CoIL 2000 Submission. [ps.gz], [pdf]
+
+20 Philip Brierley. COIL 2000 Challenge: Characteristics of caravan insurance policy owners. [ps.gz] [pdf] 
+
+21 Robert M. Simmonds. ACT Study report using Classification and Regression Tree (CART) Analysis. [ps.gz], [pdf]
+
+22 S. Sathiya Keerthi and Chong Jin Ong. Solution of the CoIL Challenge 2000 Task Using Support Vector Machines. [ps.gz], [pdf] 
+
+23 Serhiy Shtovba, Yakiv Mashnitskiy. The Backpropagation Multilayer Feedforward Neural Network Based Competition Task Solution.
+
+24 Serhiy Shtovba. Phase Intervals and Genetic Algorithms Based Competition Task Solution. [ps.gz], [pdf]
+
+25 Jurgen A. Doornik and Steve Moyle. LOGIT Modelling. [ps.gz], [pdf]
+
+26 Thomas Martini Jorgensen and Christian Linneberg. Subspace Projections – an approach to variable selection and modeling. [ps.gz], [pdf]
+
+27 Tom McKone and Curt Stenger. COIL CHALLENGE 2000 Submission. [ps.gz], [pdf]
+
+28 Tomislav Šmuc. COIL 2000 Challenge Solution based on ILLM-SG Methodology. [ps.gz], [pdf]
+
+29 Uzay Kaymak and Magne Setnes. Target Selection based on fuzzy clustering: a volume prototype approach to CoIL Challenge 2000. [ps.gz], [pdf]
+
+-->
+
 
 # Methodology
 
-Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+<!--Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
 
 We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
 
 # Experimentation and Results
 
-Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+<!--Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
 
 We used `r cite_r("Manuscript.bib")` for all our analyses.
-
+-->
 
 # Discussion and Conclusions
 
-Conclude your findings, limitations, and suggest areas for future work.
+<!--Conclude your findings, limitations, and suggest areas for future work.-->
 
 \newpage
 

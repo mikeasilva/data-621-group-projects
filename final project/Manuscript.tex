@@ -23,7 +23,7 @@
 }{}
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={CoIL Challenge Submission},
+            pdftitle={A Logistic Regression Qpproach to CoIL Challenge 2000},
             pdfauthor={Corey Arnouts, Adam Douglas, Jason Givens-Doyle, \& Michael Silva},
             pdfkeywords={CoIL Challenge, Logistic Regression},
             pdfborder={0 0 0},
@@ -63,14 +63,14 @@
 \def\footnote{\protect\rmarkdownfootnote}
 
 
-  \title{CoIL Challenge Submission}
+  \title{A Logistic Regression Qpproach to CoIL Challenge 2000}
     \author{Corey Arnouts\textsuperscript{1}, Adam Douglas\textsuperscript{1}, Jason Givens-Doyle\textsuperscript{1}, \& Michael Silva\textsuperscript{1}}
     \date{}
   
-\shorttitle{CoIL Challenge Submission}
+\shorttitle{ }
 \affiliation{
 \vspace{0.5cm}
-\textsuperscript{1} CUNY School of Professional Studies}
+\textsuperscript{1} MS in Data Science Students CUNY School of Professional Studies}
 \keywords{CoIL Challenge, Logistic Regression\newline\indent Word count: X}
 \usepackage{csquotes}
 \usepackage{upgreek}
@@ -99,24 +99,12 @@
 \renewcommand{\efloat@iwrite}[1]{\immediate\expandafter\protected@write\csname efloat@post#1\endcsname{}}
 \makeatother
 
-\authornote{MS in Data Science Students
+\authornote{
 
 Correspondence concerning this article should be addressed to Corey Arnouts, 119 W 31st St., New York, NY 10001. E-mail: \href{mailto:Corey.Arnouts@spsmail.cuny.edu}{\nolinkurl{Corey.Arnouts@spsmail.cuny.edu}}}
 
 \abstract{
-One or two sentences providing a \textbf{basic introduction} to the field, comprehensible to a scientist in any discipline.
-
-Two to three sentences of \textbf{more detailed background}, comprehensible to scientists in related disciplines.
-
-One sentence clearly stating the \textbf{general problem} being addressed by this particular study.
-
-One sentence summarizing the main result (with the words ``\textbf{here we show}'' or their equivalent).
-
-Two or three sentences explaining what the \textbf{main result} reveals in direct comparison to what was thought to be the case previously, or how the main result adds to previous knowledge.
-
-One or two sentences to put the results into a more \textbf{general context}.
-
-Two or three sentences to provide a \textbf{broader perspective}, readily comprehensible to a scientist in any discipline.
+A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
 
 
 }
@@ -127,47 +115,33 @@ Two or three sentences to provide a \textbf{broader perspective}, readily compre
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-Busineses use data science to extract insight from data. It has many practical business applications. The Computational Intelligence and Learning (CoIL) Challenge showcases the power data science can bring to bear on fundamental business problems.
+Businesses use data science to extract insights from data. It has many practical business applications. Identifying households to include in a marketing campaign is one application. One example using real world data is the Computational Intelligence and Learning (CoIL) Challenge. The CoIL Challenge competition was held from March 17 to May 8 in 2000. The challenge is to:
 
-The CoIL Challenge was a datamining competition held from March 17 to May 8 in 2000. Participants could:
-
-\begin{itemize}
-\tightlist
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
 \item
-  Predict which customers are potentially interested in a caravan insurance policy; and
+  Identify potential customers for an insurance policy; and
 \item
-  Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
-\end{itemize}
+  Provide a description of this customer base.
+\end{enumerate}
 
-In total 147 participants registered and 43 submitted solutions (Putten, Ruiter, \& Someren, 2000). The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
-
-In this paper we set out to complete the prediction part of the COIL Challenge ourselves using a logistic regression classifier. \textbf{SUMARISE FINDINGS}
+In total 147 participants registered and 43 submitted solutions (Putten, Ruiter, \& Someren, 2000). In this paper we set out to complete the first part of the COIL Challenge. \textbf{SUMARISE FINDINGS?}
 
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
 
-Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
-
-The maximum number of policyowners that could be found was 238, the winning model selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks)and 118 (linear!) policy owners. (Putten et al., 2000)
+Researchers used a variety of approaches in formulating their submissions including: Artificial Neural Networks (Kim \& Street, 2000), Naïve Bayes (Elkan, 2000).
 
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
 
-Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
-
-We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study.
-
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
-
-Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
-
-We used R (Version 3.6.1; R Core Team, 2019) and the R-package \emph{\}papaja} {[}@\}R-papaja{]} for all our analyses.
 
 \hypertarget{discussion-and-conclusions}{%
 \section{Discussion and Conclusions}\label{discussion-and-conclusions}}
 
-Conclude your findings, limitations, and suggest areas for future work.
+The maximum number of policyowners that could be found was 238, the winning model selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks)and 118 (linear!) policy owners. (Putten et al., 2000)
 
 \newpage
 
@@ -179,11 +153,14 @@ Conclude your findings, limitations, and suggest areas for future work.
 \setlength{\leftskip}{0.5in}
 
 \hypertarget{refs}{}
-\leavevmode\hypertarget{ref-Putten-2000}{}%
-Putten, P., Ruiter, M., \& Someren, M. (2000). CoIL challenge 2000 tasks and results: Predicting and explaining caravan policy ownership.
+\leavevmode\hypertarget{ref-Elkan}{}%
+Elkan, C. (2000). CoIL challenge 2000 entry. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/ELKANP~1.pdf}
 
-\leavevmode\hypertarget{ref-R-base}{}%
-R Core Team. (2019). \emph{R: A language and environment for statistical computing}. Vienna, Austria: R Foundation for Statistical Computing. Retrieved from \url{https://www.R-project.org/}
+\leavevmode\hypertarget{ref-Kim}{}%
+Kim, Y., \& Street, W. N. (2000). CoIL challenge 2000: Choosing and explaining likely caravan insurance customers. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/STREET~1.pdf}
+
+\leavevmode\hypertarget{ref-Putten}{}%
+Putten, P., Ruiter, M., \& Someren, M. (2000). CoIL challenge 2000 tasks and results: Predicting and explaining caravan policy ownership.
 
 \endgroup
 
