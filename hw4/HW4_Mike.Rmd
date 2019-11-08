@@ -1,0 +1,180 @@
+---
+title: "Mike's Scratchpad for DATA 621 Homework #4"
+author: "Mike Silva"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 3
+    code_folding: "hide"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+require(gridExtra)
+library(Amelia)
+library(kableExtra)
+library(caret)
+library(DMwR)
+library(scales)
+library(RColorBrewer)
+library(FFTrees)
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+## Data Cleanup
+
+The dollar values have dollar signs.  These will be stripped out and converted from a character to numeric.  LOG10 and LN transformations of all dollar values will be preformed.  Categorical data will be translated into dummy variables.
+
+```{r}
+df <- read.csv("./data/insurance_training_data.csv")
+evaluation <- read.csv("./data/insurance-evaluation-data.csv")
+
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
+}
+```
+
+```{r}
+to_dummies <- function(df, var, drop = FALSE){
+  temp <- data.frame(INDEX = df$INDEX, CAT = df[[var]]) %>%
+    mutate(CAT = as.character(CAT),
+           VAL = 1) %>%
+    spread(CAT, VAL, fill = 0)
+  new_names <- c()
+  for (n in names(temp)){
+    if(n != "INDEX"){
+      n <- paste0(var,"_",n)
+      n <- gsub(" ", "_", n)
+    }
+    new_names <- c(new_names, n)
+  }
+  names(temp) <- new_names
+  
+  if(drop){
+    drops <- c(var)
+    df <- df[ , !(names(df) %in% drops)]
+  }
+  
+  df %>%
+    merge(temp)
+}
+
+get_driver_type <- function(x, y){
+  if(is.na(x) | is.na(y)){
+    return(NA)
+  }
+  if(y < 40){
+    driver_type <- "Young"
+  } else if (y < 70){
+    driver_type <- "Middle Age "
+  } else {
+    driver_type <- "Older"
+  }
+  if( x == "M"){
+    return(paste(driver_type, "Male"))
+  } else {
+    return(paste(driver_type, "Female"))
+  }
+}
+
+temp <- df %>%
+  rowwise() %>%
+  mutate(INCOME = strip_dollars(INCOME),
+         HOME_VAL = strip_dollars(HOME_VAL),
+         BLUEBOOK = strip_dollars(BLUEBOOK),
+         OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
+  mutate(JOB = ifelse(str_length(JOB) > 0, JOB, NA),
+         CAR_AGE = ifelse(str_length(CAR_AGE) > 0, CAR_AGE, NA),
+         EDUCATION = ifelse(EDUCATION == "<High_School", "LT_High_School", EDUCATION),
+         URBANICITY = ifelse(URBANICITY == "Highly Urban/ Urban", "Urban", "Rural")) %>%
+  mutate(DRIVER_TYPE = get_driver_type(SEX, AGE)) %>%
+  ungroup() %>%
+  na.omit() %>%
+  to_dummies("PARENT1", T) %>%
+  to_dummies("KIDSDRIV", T) %>%
+  to_dummies("HOMEKIDS", T) %>%
+  to_dummies("MSTATUS", T) %>%
+  to_dummies("SEX", T) %>%
+  to_dummies("EDUCATION", T) %>%
+  to_dummies("JOB", T) %>%
+  to_dummies("CAR_USE", T) %>%
+  to_dummies("CAR_TYPE", T) %>%
+  to_dummies("RED_CAR", T) %>%
+  to_dummies("REVOKED", T) %>%
+  to_dummies("MVR_PTS", T) %>%
+  to_dummies("URBANICITY", T) %>%
+  to_dummies("DRIVER_TYPE", T) %>%
+  rowwise() %>%
+  mutate(BLUEBOOK = ifelse(BLUEBOOK > 0, BLUEBOOK, 0)) %>%
+  # mutate(LOG10_INCOME = log10(INCOME + 1),
+  #        LN_INCOME = log(INCOME + 1),
+  #        LOG10_HOME_VAL = log10(HOME_VAL + 1),
+  #        LN_HOME_VAL = log(HOME_VAL + 1),
+  #        LOG10_BLUEBOOK = log10(BLUEBOOK + 1),
+  #        LN_BLUEBOOK = log(BLUEBOOK + 1),
+  #        LOG10_OLDCLAIM = log10(OLDCLAIM + 1),
+  #        LN_OLDCLAIM = log(OLDCLAIM + 1)) %>%
+  mutate(PRIOR_CLAIM = ifelse(CLM_FREQ + OLDCLAIM > 0, 1,0)) %>%
+  ungroup() 
+```
+
+```{r}
+set.seed(42)
+minority <- nrow(temp[temp$TARGET_FLAG == 1,])
+majority <- nrow(temp[temp$TARGET_FLAG == 0,])
+diff <- majority - minority
+minority_index <- temp[temp$TARGET_FLAG == 1,]$INDEX
+over_sample_df <- data.frame(INDEX = sample(minority_index, diff, T)) %>%
+  merge(temp, .) %>%
+  bind_rows(temp)
+
+train_index <- createDataPartition(over_sample_df$TARGET_FLAG, p = .7, list = FALSE, times = 1)
+train <- over_sample_df[train_index,]
+test <- over_sample_df[-train_index,]
+```
+
+
+```{r}
+fft_train <- train %>%
+  select(-TARGET_AMT, -INDEX)#, -OLDCLAIM, -CLM_FREQ)
+fft_test <- test %>%
+  select(-TARGET_AMT, -INDEX)#, -OLDCLAIM, -CLM_FREQ)
+fit <- FFTrees(TARGET_FLAG ~ ., fft_train, fft_test)
+plot(fit)
+```
+The FFTree suggests that past history of filing claims is a good predictor if someone will file a claim in the future.  This could be our baseline model criteria.  
+
+Other variables that seems to come up is if the driver is in an urban location and possibly their home value and if it's a commercial vehicle
