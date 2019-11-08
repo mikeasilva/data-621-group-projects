@@ -437,14 +437,24 @@ There are missing values.  We will fill in the missing variables using KNN.
 #   #na.omit() %>%
 #   knnImputation()
 # 
-# for(var in names(df)){
-#   impute_me <- is.na(df[[var]])
-#   if (nrow(df[impute_me,]) > 0){
-#     print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
-#     #df[impute_me, var] <- knn[impute_me, var] 
-#   }
-# }
+for(var in names(df)){
+  impute_me <- is.na(df[[var]])
+  if (nrow(df[impute_me,]) > 0){
+    print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
+    #df[impute_me, var] <- knn[impute_me, var] 
+  }
+}
+
+
+## adding in some imputing logic
+library(VIM)
+library(laeken)
+
+
+df[,3:ncol(df)] <- df[,3:ncol(df)] %>% kNN(numFun = weightedMean, weightDist=TRUE)
 ```
+
+
 
 
 ### Feature Creation
@@ -463,6 +473,8 @@ feature_creation <- function(d){
 
 df <- feature_creation(df)
 evaluation <- feature_creation(evaluation)
+
+df$TARGET_FLAG_BOOL <- ifelse(df$TARGET_FLAG=="1",1,0)
 ```
 
 ### Creating Training/Test Data Sets
@@ -475,3 +487,77 @@ train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 
 train <- df[train_index,]
 test <- df[-train_index,]
 ```
+
+
+
+```{r}
+library(lme4)
+glm <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train, family=poisson) 
+summary(glm)
+
+test$Prediction =predict.glm(glm, newdata=test, type="response")
+
+cor(test$TARGET_AMT, test$Prediction)
+
+glm2 <- glm(TARGET_AMT ~ .-TARGET_FLAG-TARGET_FLAG_BOOL , data= train) 
+summary(glm2)
+
+test$Prediction2 =predict.glm(glm2, newdata=test, type="response")
+
+cor(test$TARGET_AMT, test$Prediction)
+
+
+glm3 <- glm(TARGET_AMT ~ AGE+PARENT1+MSTATUS+JOB+BLUEBOOK+TIF+CAR_AGE_density+URBANICITY+MVR_PTS+REVOKED+CLM_FREQ+OLDCLAIM , data= train, family=poisson) 
+summary(glm3)
+
+test$Prediction =predict.glm(glm3, newdata=test, type="response")
+
+cor(test$TARGET_AMT, test$Prediction)
+```
+
+
+
+
+```{r}
+source("https://raw.githubusercontent.com/crarnouts/Corey-s_Scripts_For_Reference/master/11_5_19_Density_Diff_Function")
+```
+
+
+### Creating Some New Variables
+      
+```{r}
+
+
+## try it out 
+train <- density_diff(train,test,"INCOME",train$TARGET_FLAG_BOOL,"income_density")$new_data_training
+test <- density_diff(train,test,"INCOME",train$TARGET_FLAG_BOOL,"income_density")$new_data_eval
+
+density_diff(train,test,"INCOME",train$TARGET_FLAG_BOOL,"income_density")$dist_diff
+density_diff(train,test,"INCOME",train$TARGET_FLAG_BOOL,"income_density")$dist
+
+
+train <- density_diff(train,test,"CAR_AGE",train$TARGET_FLAG_BOOL,"CAR_AGE_density")$new_data_training
+test <- density_diff(train,test,"CAR_AGE",train$TARGET_FLAG_BOOL,"CAR_AGE_density")$new_data_eval
+
+density_diff(train,test,"CAR_AGE",train$TARGET_FLAG_BOOL,"CAR_AGE_density")$dist_diff
+density_diff(train,test,"CAR_AGE",train$TARGET_FLAG_BOOL,"CAR_AGE_density")$dist
+
+train <- density_diff(train,test,"TRAVTIME",train$TARGET_FLAG_BOOL,"TRAVTIME_density")$new_data_training
+test <- density_diff(train,test,"TRAVTIME",train$TARGET_FLAG_BOOL,"TRAVTIME_density")$new_data_eval
+
+density_diff(train,test,"TRAVTIME",train$TARGET_FLAG_BOOL,"TRAVTIME_density")$dist_diff
+density_diff(train,test,"TRAVTIME",train$TARGET_FLAG_BOOL,"TRAVTIME_density")$dist
+
+
+```
+
+##Test out Some Models
+
+```{r}
+
+```
+
+
+
+
+
