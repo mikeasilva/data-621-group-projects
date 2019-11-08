@@ -64,19 +64,22 @@ strip_dollars <- function(x){
   as.numeric(x)
 }
 
-hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
+hw4_plot <- function(df, var, strip_dollar_signs = FALSE, x_log_scale = FALSE){
   if(strip_dollar_signs){
     df$X <- strip_dollars(df[[var]])
   } else {
     df$X <- df[[var]]
   }
-  plot_1_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
-    geom_jitter() +
-    scale_color_brewer(palette="Set1") +
-    theme_minimal() +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
+  if(x_log_scale){
+    df$X <- log10(df$X)
+  }
+  # plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+  #   geom_jitter() +
+  #   scale_color_brewer(palette="Set1") +
+  #   theme_minimal() +
+  #   theme(legend.position = "none",
+  #         axis.title.x = element_blank(),
+  #         axis.title.y = element_blank())
   
   plot_1 <- ggplot(df, aes(X, color = TARGET_FLAG)) +
     geom_density() + 
@@ -89,6 +92,7 @@ hw4_plot <- function(df, var, strip_dollar_signs = FALSE){
   plot_2 <- ggplot(df, aes(X, TARGET_AMT, color = TARGET_FLAG)) +
     geom_point() +
     scale_color_brewer(palette="Set1") +
+    scale_y_log10(labels=comma) +
     theme_minimal() +
     theme(legend.position = "none",
           axis.title.x = element_blank(),
@@ -103,18 +107,25 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
   } else {
     df$X <- as.factor(as.character(df[[var]]))
   }
-  plot_1_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
-    geom_jitter() +
-    scale_color_brewer(palette="Set1") +
-    theme_minimal() +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
-  plot_1 <- df %>%
+  # plot_1 <- ggplot(df, aes(X, TARGET_FLAG, color = TARGET_FLAG)) +
+  #   geom_jitter() +
+  #   scale_color_brewer(palette="Set1") +
+  #   theme_minimal() +
+  #   theme(legend.position = "none",
+  #         axis.title.x = element_blank(),
+  #         axis.title.y = element_blank())
+  temp <- df %>%
     group_by(X, TARGET_FLAG) %>%
+    tally()
+  temp <- df %>%
+    group_by(X) %>%
     tally() %>%
+    rename(TOTAL = n) %>%
+    merge(temp) %>%
+    mutate(PERCENT = n / TOTAL)
+  plot_1 <-  temp %>%
     ggplot(.) +
-    geom_bar(aes(X, n, fill = TARGET_FLAG), stat="identity") +
+    geom_bar(aes(X, PERCENT, fill = TARGET_FLAG), stat="identity") +
     scale_fill_brewer(palette="Set1") +
     theme_minimal() +
     theme(legend.position = "none",
@@ -124,6 +135,7 @@ hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
     filter(TARGET_FLAG == 1) %>%
     ggplot(., aes(X, TARGET_AMT, color = X)) +
       geom_boxplot() +
+      scale_y_log10() +
       scale_color_brewer(palette="Dark2") + #Paired
       theme_minimal() +
       theme(legend.position = "none",
@@ -212,7 +224,7 @@ There is very little information encapsulated in the age of the person.
 Unknown effect on probability of collision, but probably effects the payout if there is a crash.
 
 ```{r} 
-hw4_plot(df, "BLUEBOOK", TRUE)
+hw4_plot(df, "BLUEBOOK", TRUE, TRUE)
 ```
 
 **Observed Effect**
@@ -302,7 +314,7 @@ It's interesting to note that those with kids have a 0.34 probability of being i
 In theory, home owners tend to drive more responsibly.
 
 ```{r} 
-hw4_plot(df, "HOME_VAL", TRUE)
+hw4_plot(df, "HOME_VAL", TRUE, TRUE)
 ```
 
 **Observed Effect**
@@ -314,7 +326,7 @@ There are a lot of zero values.  I am assuming that it is a zero because they ar
 In theory, rich people trend to get into fewer crashes.
 
 ```{r} 
-hw4_plot(df, "INCOME", TRUE)
+hw4_plot(df, "INCOME", TRUE, TRUE)
 ```
 
 **Observed Effect**
@@ -367,14 +379,125 @@ INSERT TEXT HERE
 If you get lots of traffic tickets, you trend to get into more crashes
 
 ```{r} 
-hw4_categorical_plot(df, "MVR_PTS")
-hw4_target_table(df, "MVR_PTS")
+hw4_plot(df, "MVR_PTS")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### OLDCLAIM
+
+**Theoretical Effect**
+If your total payout over the past five years was high, you are more likely to get into crashes.
+
+```{r} 
+hw4_plot(df, "OLDCLAIM", TRUE, TRUE)
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### PARENT1
+
+**Theoretical Effect**
+Unknown effect
+
+```{r} 
+hw4_categorical_plot(df, "PARENT1")
+hw4_target_table(df, "PARENT1")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### RED_CAR
+
+**Theoretical Effect**
+Urban legend says that red cars (espcially red sports cars) are more risky. Is that true?
+
+```{r} 
+hw4_categorical_plot(df, "RED_CAR")
+hw4_target_table(df, "RED_CAR")
 ```
 
 **Observed Effect**
 INSERT TEXT HERE
 
 
+### REVOKED
+
+**Theoretical Effect**
+If your license was revoked in the pat 7 years, you probably are a more risky driver.
+
+```{r}
+hw4_categorical_plot(df, "REVOKED")
+hw4_target_table(df, "REVOKED")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### SEX
+
+**Theoretical Effect**
+Urban legend says that women have less crashes then men.  Is that true?
+
+```{r}
+hw4_categorical_plot(df, "SEX")
+hw4_target_table(df, "SEX")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### TIF
+
+**Theoretical Effect**
+People who have been customers for a long time are usually more safe.
+
+```{r}
+hw4_plot(df, "TIF")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### TRAVTIME
+
+**Theoretical Effect**
+Log drives to work usually suggest greater risk
+
+```{r}
+hw4_plot(df, "TRAVTIME")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### URBANICITY
+
+**Theoretical Effect**
+Unknown
+
+```{r}
+hw4_categorical_plot(df, "URBANICITY")
+hw4_target_table(df, "URBANICITY")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### YOJ
+
+**Theoretical Effect**
+People who stay at a job for a long time are usuaslly more safe
+
+```{r}
+hw4_plot(df, "YOJ")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
 Looking at the data, we can see that there are some missing values:
 
 ```{r}
