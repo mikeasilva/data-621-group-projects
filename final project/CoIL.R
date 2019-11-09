@@ -2,7 +2,8 @@
 library(tidyverse)
 # Download the data sets from UCI if they are not present
 url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/tic-mld/"
-for (file_name in c("ticdata2000.txt", "ticeval2000.txt", "tictgts2000.txt")) {
+files <- c("ticdata2000.txt", "ticeval2000.txt", "tictgts2000.txt")
+for (file_name in files) {
   file_path <- paste0("data/", file_name)
   file_url <- paste0(url, file_name)
   if (!file.exists(file_path)) {
