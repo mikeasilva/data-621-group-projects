@@ -212,3 +212,35 @@ over_sample_train %>%
   theme(legend.position = "none") +
   labs(x="TARGET_FLAG", y="# Observations")
 ```
+
+## Model Creation
+
+### Baseline Model
+
+```{r}
+evaluate_model <- function(model, test_df){
+  test_df$yhat <- ifelse(predict.glm(model, test_df,"response") >= 0.5, 1, 0)
+  cm <- confusionMatrix(factor(test_df$yhat), factor(test$TARGET_FLAG), "1")
+  deviance <- model$deviance
+  r2 <- 1 - model$deviance / model$null.deviance
+  
+  cat("F1 =", cm$byClass[7],"\nR2 =", r2, "\n\n")
+  print(cm)
+  return(cm)
+}
+```
+
+We will create a simple model to serve as the baseline.  This model posits that drivers history is a good representation of their future.  So drivers that have been in an accident (`OLDCLAIM` > 0 or `AVG_CLAIM` > 0) are more likely to be in an accident.  Conversely those who haven't aren't likely to be in one in the future.
+
+```{r, null_prefix = TRUE, comment=NA}
+baseline_model <- over_sample_train %>%
+  mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
+  glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), .)
+summary(baseline_model)
+
+results <- test %>%
+  mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
+  evaluate_model(baseline_model, .)
+```
+
+This simple model has statistically significant predictors.  Applying this model to the test data set indicates this simple model has a `r  round(unname(results$overall['Accuracy'])*100,1)`% accuracy rate.  It correcly identified `r round(unname(results$byClass['Sensitivity'])*100,1)`% of the people with accidents and `r  round(unname(results$byClass['Specificity'])*100,1)`% of those without.  It is better than flipping a coin but not by much.  All future models must outpreform this baseline.
