@@ -1,5 +1,5 @@
 ---
-title             : "A Logistic Regression Qpproach to CoIL Challenge 2000"
+title             : "A Logistic Regression Approach to CoIL Challenge 2000"
 shorttitle        : " "
 author: 
   - name          : "Corey Arnouts"
@@ -75,31 +75,32 @@ In total 147 participants registered and 43 submitted solutions [@Putten]. In th
 
 <!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
 
-Participants used a variety of approaches in formulating their submissions including: Artificial Neural Networks [@Kim], Naïve Bayes [@Elkan].
+Participants used a variety of approaches in formulating their submissions including: 
 
+- Classification Trees with Bagging [@White];
+
+- C4.5 [@Seewald];
+
+- Evolutionary Algorithm [@Koudijs];
+
+- Inductive Learning by Logic Minimization (ILLM) [@Gamberger];
+
+- Mask Perceptron with Boosting [@Leckie];
+
+- Naïve Bayes [@Elkan]; and
+
+- Neural Networks[@Crocoll], [@Kim];
+
+- Scoring System [@Lewandowski];
+
+- Support Vector Machines; and
+
+- XCS [@Greenyer].
 
 The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
 
 <!--
-Other solutions (in alphabetical order):
-
-3 Achim Lewandowski. How to detect potential customers. [ps.gz], [pdf]
-
-4 Alexander Seewald. CoIL Challenge 2000 Submitted Solution. [ps.gz], [pdf]
-
-5 A.P. White and W.Z. Liu. The CoIL Challenge: an Application of Classification Trees with Bootstrap Aggregation. [ps.gz], [pdf]
-
-6 Andrew Greenyer. Coil 2000 Competition. The use of a learning classifier system JXCS. [ps.gz], [pdf]
-
-7 Arnold Koudijs. CoIL Challenge 2000 Submission for the Description Task. [ps.gz], [pdf]
-
-8 William M. Crocoll. Artificial Neural Network Portion of Coil Study. [ps.gz], [pdf]
-
-9 Chris Leckie and Herman Ferra. COIL Challenge 2000 Description Task. [ps.gz], [pdf]
-
-10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf]
-
-11 Dragan Gamberger. Solution based on ILLM confirmation rule. [ps.gz], [pdf]
+10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf] - Not sure what they used
 
 12 János Abonyi, Hans Roubos. A Simple Fuzzy Classifier based on Inconsistency Analysis of Labeled Data. [ps.gz],[pdf]
 
