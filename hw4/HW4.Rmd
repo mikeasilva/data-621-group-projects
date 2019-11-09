@@ -51,11 +51,8 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
 ```{r}
-df <- read.csv("./data/insurance_training_data.csv") %>%
-  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
-  select(-INDEX)
-evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
-  select(-INDEX)
+df <- read.csv("./data/insurance_training_data.csv")
+evaluation <- read.csv("./data/insurance-evaluation-data.csv")
 
 strip_dollars <- function(x){
   x <- as.character(x)
@@ -500,24 +497,11 @@ hw4_plot(df, "YOJ")
 INSERT TEXT HERE
 Looking at the data, we can see that there are some missing values:
 
-```{r}
-missmap(df, main = "Missing vs Observed Values")
-```
-
-Specifically, there `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable are missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, but only `r df %>% filter(is.na(YOJ),is.na(CAR_AGE)) %>% nrow()` observations missing both of these varables. So, if imputation is not viable here, we will lose as many as 488 observations out of the 8161 in our training set (or about 6%).
-
 ## Data Preparation
-
-```{r}
-df %>%
-  summary() %>%
-  kable() %>%
-  kable_styling()
-```
 
 ### Fix Data Types
 
-There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.
+There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.  There are also some invalid data that will be changed to NAs.
 
 ```{r}
 strip_dollars <- function(x){
@@ -537,8 +521,19 @@ fix_data_types <- function(messy_df){
     ungroup()
 }
 
-df <- fix_data_types(df)
-evaluation <- fix_data_types(evaluation)
+na_bad_values <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(CAR_AGE = ifelse(CAR_AGE < 0, NA, CAR_AGE))%>%
+    ungroup()
+}
+
+df <- df %>%
+  fix_data_types() %>%
+  na_bad_values()
+evaluation <- evaluation %>%
+  fix_data_types() %>%
+  na_bad_values()
 ```
 
 Now that we have fixed the variables, we can look at a sumamry of the data:
@@ -551,24 +546,13 @@ df %>%
 ```
 
 ### Fix Missing Values
-There are missing values.  We will fill in the missing variables using KNN.
 
-```{r, null_prefix = TRUE}
-# set.seed(42)
-# knn <- df %>%
-#   select(-TARGET_FLAG, -TARGET_AMT, is.numeric()) %>%
-#   #na.omit() %>%
-#   knnImputation()
-# 
-# for(var in names(df)){
-#   impute_me <- is.na(df[[var]])
-#   if (nrow(df[impute_me,]) > 0){
-#     print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
-#     #df[impute_me, var] <- knn[impute_me, var] 
-#   }
-# }
+
+```{r}
+missmap(df, main = "Missing vs Observed Values")
 ```
 
+Specifically, there `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable are missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, `r df %>% filter(is.na(AGE)) %>% nrow() ` observations where the variable `AGE` is missing, `r df %>% filter(is.na(INCOME)) %>% nrow() ` observations where the variable `INCOME` is missing, and `r df %>% filter(is.na(HOME_VAL)) %>% nrow() ` observations where the variable `HOME_VAL` is missing.  There are `r nrow(df) - nrow(na.omit(df))`, or `r round(((nrow(df) - nrow(na.omit(df))) / nrow(df)) * 100)`% of the observations missing varables.
 
 ### Feature Creation
 
@@ -597,4 +581,27 @@ set.seed(42)
 train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
 train <- df[train_index,]
 test <- df[-train_index,]
+```
+
+There are `r nrow(train[TARGET_FLAG == 1,])` out of `r nrow(train)` records in the training data set that have been in an accident.  We want to correct the imballance in the dataset by over sampling this group so our model will do a better job identifying this minority group.
+
+```{r}
+set.seed(42)
+minority <- nrow(train[train$TARGET_FLAG == 1,])
+majority <- nrow(train[train$TARGET_FLAG == 0,])
+diff <- majority - minority
+minority_index <- train[train$TARGET_FLAG == 1,]$INDEX
+over_sample_train <- data.frame(INDEX = sample(minority_index, diff, T)) %>%
+  merge(train, .) %>%
+  bind_rows(train)
+```
+The over sampled data frame has `r nrow(over_sample_train)` records, and as you can see in the following figure is now balanced:
+
+```{r, echo=FALSE}
+over_sample_train %>% 
+  ggplot(aes(x=TARGET_FLAG, fill=TARGET_FLAG)) +
+  geom_bar() + scale_y_continuous() + scale_fill_brewer(palette="Set1") +
+  theme_light() +
+  theme(legend.position = "none") +
+  labs(x="TARGET_FLAG", y="# Observations")
 ```
