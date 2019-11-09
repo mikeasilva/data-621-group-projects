@@ -184,3 +184,386 @@ The FFTree suggests that past history of filing claims is a good predictor if so
 
 Other variables that seems to come up is if the driver is in an urban location and possibly their home value and if it's a commercial vehicle
 
+
+
+```{r}
+hw4_plot <- function(df, var, strip_dollar_signs = FALSE, x_log_scale = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- df[[var]]
+  }
+  if(x_log_scale){
+    df$X <- log10(df$X)
+  }
+  
+  plot_1 <- ggplot(df, aes(X, color = as.factor(TARGET_FLAG))) +
+    geom_density() + 
+    scale_color_brewer(palette="Set1") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  plot_2 <- ggplot(df, aes(X, TARGET_AMT, color = as.factor(TARGET_FLAG))) +
+    geom_point() +
+    scale_color_brewer(palette="Set1") +
+    scale_y_log10(labels=comma) +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  grid.arrange(plot_1, plot_2, ncol=2)
+}
+
+hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- as.factor(as.character(df[[var]]))
+  }
+
+  temp <- df %>%
+    group_by(X, TARGET_FLAG) %>%
+    tally()
+  temp <- df %>%
+    group_by(X) %>%
+    tally() %>%
+    rename(TOTAL = n) %>%
+    merge(temp) %>%
+    mutate(PERCENT = n / TOTAL)
+  
+  plot_1 <-  temp %>%
+    ggplot(.) +
+    geom_bar(aes(X, PERCENT, fill = as.factor(TARGET_FLAG)), stat="identity") +
+    scale_fill_brewer(palette="Set1") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  plot_2 <- df %>%
+    filter(TARGET_FLAG == 1) %>%
+    ggplot(., aes(X, as.factor(TARGET_AMT), color = X)) +
+      geom_boxplot() +
+      #scale_y_log10() +
+      scale_color_brewer(palette="Dark2") + #Paired
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank())
+  
+  grid.arrange(plot_1, plot_2, ncol=2)
+}
+
+hw4_target_table <- function(df, var, strip_dollar_signs = FALSE){
+  if(strip_dollar_signs){
+    df$X <- strip_dollars(df[[var]])
+  } else {
+    df$X <- df[[var]]
+  }
+  df %>%
+    group_by(X, TARGET_FLAG) %>%
+    tally() %>%
+    spread(TARGET_FLAG, n) %>%
+    rename(Variable = X) %>%
+    kable() %>%
+    kable_styling()
+}
+```
+
+
+### AGE
+
+**Theoretical Effect**
+Very young people tend to be risky.  Maybe very old people also.
+
+```{r} 
+hw4_plot(df, "AGE")
+```
+
+**Observed Effect**
+There is very little information encapsulated in the age of the person.
+
+
+### BLUEBOOK
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_plot(df, "BLUEBOOK", TRUE, TRUE)
+```
+
+**Observed Effect**
+The plot suggests that people with low value and high value vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's value.
+
+### CAR_AGE
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_plot(df, "CAR_AGE")
+```
+
+**Observed Effect**
+The plot suggests that people with old or new vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's age.  *There is an observation with a negative value that will need to be cleaned up.*
+
+### CAR_TYPE
+
+**Theoretical Effect**
+Unknown effect on probability of collision, but probably effects the payout if there is a crash.
+
+```{r} 
+hw4_categorical_plot(df, "CAR_TYPE")
+hw4_target_table(df, "CAR_TYPE")
+```
+
+**Observed Effect**
+The plot suggests that the type of vehicle has no effect on the probability of being in an accident, and little effect of the cost.
+
+### CAR_USE
+
+**Theoretical Effect**
+Commercian vehicles are driven more, so might increase probability of collision.
+
+```{r} 
+hw4_categorical_plot(df, "CAR_USE")
+hw4_target_table(df, "CAR_USE")
+```
+
+**Observed Effect**
+The plot suggests that the use does not increase or decrease the probability of being in an accident or the amount of the claim.
+
+### CLM_FREQ
+
+**Theoretical Effect**
+The more claims you filed in the past, the more you are likely to file in the future.
+
+```{r} 
+hw4_categorical_plot(df, "CLM_FREQ")
+hw4_target_table(df, "CLM_FREQ")
+```
+
+**Observed Effect**
+Looks like there are few people who signed up for the frequent accident club.  All jokes aside, the theoretical effect is not observed in the data.
+
+### EDUCATION
+
+**Theoretical Effect**
+Unknown effect, but in theory more educated people tend to drive more safely
+
+```{r} 
+hw4_categorical_plot(df, "EDUCATION")
+hw4_target_table(df, "EDUCATION")
+```
+
+**Observed Effect**
+The theoretical effect has no basis and is somewhat elitist.
+
+
+### HOMEKIDS
+
+**Theoretical Effect**
+Unknown effect
+
+```{r} 
+hw4_categorical_plot(df, "HOMEKIDS")
+hw4_target_table(df, "HOMEKIDS")
+```
+
+**Observed Effect**
+It's interesting to note that those with kids have a 0.34 probability of being in an accident.  Those without kids have a 0.22 probability of being in an accident.  This may be useful.
+
+### HOME_VAL
+
+**Theoretical Effect**
+In theory, home owners tend to drive more responsibly.
+
+```{r} 
+hw4_plot(df, "HOME_VAL", TRUE, TRUE)
+```
+
+**Observed Effect**
+There are a lot of zero values.  I am assuming that it is a zero because they are renters.
+
+### INCOME
+
+**Theoretical Effect**
+In theory, rich people trend to get into fewer crashes.
+
+```{r} 
+hw4_plot(df, "INCOME", TRUE, TRUE)
+```
+
+**Observed Effect**
+There are a lot of zero values.  I am assuming that it is a zero because they are renters.
+
+
+### JOB
+
+**Theoretical Effect**
+In theory, white collar jobs tend to be safer
+
+```{r} 
+hw4_categorical_plot(df, "JOB")
+hw4_target_table(df, "JOB")
+```
+
+**Observed Effect**
+There is a 0.21 probability for white collar job holders being in an accident.  there's a 0.34 probability for the blue collar jobs.  There may be some truth to the theoretical effect.
+
+
+### KIDSDRIV
+
+**Theoretical Effect**
+When teenagers drive your car, ou are more likely to get into crashes
+
+```{r} 
+hw4_categorical_plot(df, "KIDSDRIV")
+hw4_target_table(df, "KIDSDRIV")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### MSTATUS
+
+**Theoretical Effect**
+In theory, married people drive more safely
+
+```{r} 
+hw4_categorical_plot(df, "MSTATUS")
+hw4_target_table(df, "MSTATUS")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### MVR_PTS
+
+**Theoretical Effect**
+If you get lots of traffic tickets, you trend to get into more crashes
+
+```{r} 
+hw4_plot(df, "MVR_PTS")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### OLDCLAIM
+
+**Theoretical Effect**
+If your total payout over the past five years was high, you are more likely to get into crashes.
+
+```{r} 
+hw4_plot(df, "OLDCLAIM", TRUE, TRUE)
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### PARENT1
+
+**Theoretical Effect**
+Unknown effect
+
+```{r} 
+hw4_categorical_plot(df, "PARENT1")
+hw4_target_table(df, "PARENT1")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### RED_CAR
+
+**Theoretical Effect**
+Urban legend says that red cars (espcially red sports cars) are more risky. Is that true?
+
+```{r} 
+hw4_categorical_plot(df, "RED_CAR")
+hw4_target_table(df, "RED_CAR")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+
+### REVOKED
+
+**Theoretical Effect**
+If your license was revoked in the pat 7 years, you probably are a more risky driver.
+
+```{r}
+hw4_categorical_plot(df, "REVOKED")
+hw4_target_table(df, "REVOKED")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### SEX
+
+**Theoretical Effect**
+Urban legend says that women have less crashes then men.  Is that true?
+
+```{r}
+hw4_categorical_plot(df, "SEX")
+hw4_target_table(df, "SEX")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### TIF
+
+**Theoretical Effect**
+People who have been customers for a long time are usually more safe.
+
+```{r}
+hw4_plot(df, "TIF")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### TRAVTIME
+
+**Theoretical Effect**
+Log drives to work usually suggest greater risk
+
+```{r}
+hw4_plot(df, "TRAVTIME")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### URBANICITY
+
+**Theoretical Effect**
+Unknown
+
+```{r}
+hw4_categorical_plot(df, "URBANICITY")
+hw4_target_table(df, "URBANICITY")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+
+### YOJ
+
+**Theoretical Effect**
+People who stay at a job for a long time are usuaslly more safe
+
+```{r}
+hw4_plot(df, "YOJ")
+```
+
+**Observed Effect**
+INSERT TEXT HERE
+Looking at the data, we can see that there are some missing values:
