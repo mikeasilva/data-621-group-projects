@@ -213,6 +213,24 @@ over_sample_train %>%
   labs(x="TARGET_FLAG", y="# Observations")
 ```
 
+## Feature Creation
+
+```{r}
+create_features <- function(d){
+  d %>%
+    mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
+    mutate(COLLEGE_EDUCATED = ifelse(EDUCATION %in% c("Bachelors", "Masters", "PhD"), 1, 0)) %>%
+    mutate(URBAN_DRIVER = ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)) %>%
+    mutate(YOUNG_MALE = ifelse(SEX == "M" & AGE < 21, 1, 0)) %>%
+    mutate(RED_SPORTS_CAR = ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)) %>%
+    mutate(HAS_KIDS = ifelse(HOMEKIDS == 0, 0, 1)) %>%
+    mutate(KID_DRIVERS = ifelse(KIDSDRIV == 0, 0, 1))
+}
+
+over_sample_train <- create_features(over_sample_train)
+test <- create_features(test)
+```
+
 ## Model Creation
 
 ### Baseline Model
@@ -233,14 +251,33 @@ evaluate_model <- function(model, test_df){
 We will create a simple model to serve as the baseline.  This model posits that drivers history is a good representation of their future.  So drivers that have been in an accident (`OLDCLAIM` > 0 or `AVG_CLAIM` > 0) are more likely to be in an accident.  Conversely those who haven't aren't likely to be in one in the future.
 
 ```{r, null_prefix = TRUE, comment=NA}
-baseline_model <- over_sample_train %>%
-  mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
-  glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), .)
+baseline_model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), over_sample_train)
 summary(baseline_model)
 
-results <- test %>%
-  mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
-  evaluate_model(baseline_model, .)
+results <- evaluate_model(baseline_model, test)
 ```
 
+
 This simple model has statistically significant predictors.  Applying this model to the test data set indicates this simple model has a `r  round(unname(results$overall['Accuracy'])*100,1)`% accuracy rate.  It correcly identified `r round(unname(results$byClass['Sensitivity'])*100,1)`% of the people with accidents and `r  round(unname(results$byClass['Specificity'])*100,1)`% of those without.  It is better than flipping a coin but not by much.  All future models must outpreform this baseline.
+
+### Risk Taker Model
+
+For this model we are going assume that risk takers are more likely to be in an accident.  To identify those who tend to be risk takers, we are going with the urban legend that those who drive red sports cars are risk takers.  Also young men (16-20) also tend to be risk takers.
+
+```{r, null_prefix = TRUE, comment=NA}
+risk_taker_model <- glm(TARGET_FLAG ~ RED_SPORTS_CAR + YOUNG_MALE, family = binomial(link = "logit"), over_sample_train)
+summary(risk_taker_model)
+
+risk_taker_results <- evaluate_model(risk_taker_model, test)
+```
+
+This model does not have statistically significant predictors, however it has a `r  round(unname(risk_taker_results$overall['Accuracy'])*100,1)`% accuracy rate.  This is because it identified `r  round(unname(risk_taker_results$byClass['Specificity'])*100,1)`% of those who didn't have an accident (and they are more numerous).  When looking at the model's performance on identifying the minority group of interest we see it correcly identified `r round(unname(risk_taker_results$byClass['Sensitivity'])*100,1)`% of the people with accidents.  So while the accuracy rate out preformed the baseline model, this one will not be the model we will use.
+
+### Misc 
+
+```{r, null_prefix = TRUE, comment=NA}
+model <- glm(TARGET_FLAG ~ CAR_USE, family = binomial(link = "logit"), over_sample_train)
+summary(model)
+
+model_results <- evaluate_model(model, test)
+```
