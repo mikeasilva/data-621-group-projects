@@ -112,13 +112,23 @@ Participants used a variety of approaches in formulating their submissions inclu
 
 - Classification Trees with Bagging [@White];
 
-- C4.5 [@Seewald];
+- C4.5 [@Seewald], [@Rickets];
 
 - Evolutionary Algorithm [@Koudijs];
 
+- Fuzzy Classifier [@Abonyi];
+
+- Genetic Algorithms and Hill-climbers [@Carter];
+
 - Inductive Learning by Logic Minimization (ILLM) [@Gamberger];
 
+- K-Means [@Vesanto];
+
+- KXEN [@Bera];
+
 - Mask Perceptron with Boosting [@Leckie];
+
+- Midos Algorithm [@Krogel];
 
 - Naïve Bayes [@Elkan]; and
 
@@ -134,18 +144,6 @@ The maximum number of policyowners that could be found was 238.  The winning mod
 
 <!--
 10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf] - Not sure what they used
-
-12 János Abonyi, Hans Roubos. A Simple Fuzzy Classifier based on Inconsistency Analysis of Labeled Data. [ps.gz],[pdf]
-
-13 Jonathan Carter. Coil 2000 Challenge Submission: Genetic Algorithms and Hill-climbers. [ps.gz], [pdf]
-
-14 Juha Vesanto and Janne Sinkkonen. Submission for the CoIL Challenge 2000. [ps.gz], [pdf]
-
-15 Mark-André Krogel. A Data Mining Case Study. [ps.gz],[pdf]
-
-16 Michel Bera and Bertrand Lamy. Kxen at CoIL Challenge 2000. [ps.gz], [pdf]
-
-17 Paul Rickets. CoIL Challenge 2000 submission. [ps.gz], [pdf]
 
 18 Petr Mikšovský, Jirí Klema. COIL Challenge 2000. [ps.gz], [pdf]
 
@@ -208,9 +206,9 @@ r_refs(file = "Manuscript.bib")
 \newpage
 
 # Appendices
-
+<!--
 - Supplemental tables and/or figures.
-
+-->
 ## R statistical programming code.
 
 <code>
