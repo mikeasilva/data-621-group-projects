@@ -276,7 +276,15 @@ This model does not have statistically significant predictors, however it has a 
 ### Misc 
 
 ```{r, null_prefix = TRUE, comment=NA}
-model <- glm(TARGET_FLAG ~ CAR_USE, family = binomial(link = "logit"), over_sample_train)
+#"KIDSDRIV"         "AGE"             
+#[6] "HOMEKIDS"         "YOJ"              "INCOME"           "PARENT1"          "HOME_VAL"        
+#[11] "MSTATUS"          "SEX"              "EDUCATION"        "JOB"              "TRAVTIME"        
+#[16] "CAR_USE"          "BLUEBOOK"         "TIF"              "CAR_TYPE"         "RED_CAR"         
+#[21] "OLDCLAIM"         "CLM_FREQ"         "REVOKED"          "MVR_PTS"          "CAR_AGE"         
+#[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
+#[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
+#[36] "KID_DRIVERS"     
+model <- glm(TARGET_FLAG ~ KID_DRIVERS, family = binomial(link = "logit"), over_sample_train)
 summary(model)
 
 model_results <- evaluate_model(model, test)
