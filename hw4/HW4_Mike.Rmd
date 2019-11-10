@@ -184,7 +184,15 @@ The FFTree suggests that past history of filing claims is a good predictor if so
 
 Other variables that seems to come up is if the driver is in an urban location and possibly their home value and if it's a commercial vehicle
 
-
+```{r}
+library(randomForest)
+rf_df <- df %>%
+  select(-TARGET_AMT, -INDEX) %>%
+  na.omit()
+rf <- randomForest(TARGET_FLAG ~ ., rf_df, ntree=1000,
+                          keep.forest=FALSE, importance=TRUE)
+importance(rf)
+```
 
 ```{r}
 hw4_plot <- function(df, var, strip_dollar_signs = FALSE, x_log_scale = FALSE){
