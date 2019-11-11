@@ -108,69 +108,9 @@ In total 147 participants registered and 43 submitted solutions [@Putten]. In th
 
 <!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
 
-Participants used a variety of approaches in formulating their submissions including: 
-
-- Classification Trees with Bagging [@White];
-
-- C4.5 [@Seewald], [@Rickets];
-
-- Evolutionary Algorithm [@Koudijs];
-
-- Fuzzy Classifier [@Abonyi];
-
-- Genetic Algorithms and Hill-climbers [@Carter];
-
-- Inductive Learning by Logic Minimization (ILLM) [@Gamberger];
-
-- K-Means [@Vesanto];
-
-- KXEN [@Bera];
-
-- Mask Perceptron with Boosting [@Leckie];
-
-- Midos Algorithm [@Krogel];
-
-- Naïve Bayes [@Elkan]; and
-
-- Neural Networks[@Crocoll], [@Kim];
-
-- Scoring System [@Lewandowski];
-
-- Support Vector Machines; and
-
-- XCS [@Greenyer].
+Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regressio Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
 
 The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
-
-<!--
-10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf] - Not sure what they used
-
-18 Petr Mikšovský, Jirí Klema. COIL Challenge 2000. [ps.gz], [pdf]
-
-19 Petri Kontkanen. CoIL 2000 Submission. [ps.gz], [pdf]
-
-20 Philip Brierley. COIL 2000 Challenge: Characteristics of caravan insurance policy owners. [ps.gz] [pdf] 
-
-21 Robert M. Simmonds. ACT Study report using Classification and Regression Tree (CART) Analysis. [ps.gz], [pdf]
-
-22 S. Sathiya Keerthi and Chong Jin Ong. Solution of the CoIL Challenge 2000 Task Using Support Vector Machines. [ps.gz], [pdf] 
-
-23 Serhiy Shtovba, Yakiv Mashnitskiy. The Backpropagation Multilayer Feedforward Neural Network Based Competition Task Solution.
-
-24 Serhiy Shtovba. Phase Intervals and Genetic Algorithms Based Competition Task Solution. [ps.gz], [pdf]
-
-25 Jurgen A. Doornik and Steve Moyle. LOGIT Modelling. [ps.gz], [pdf]
-
-26 Thomas Martini Jorgensen and Christian Linneberg. Subspace Projections – an approach to variable selection and modeling. [ps.gz], [pdf]
-
-27 Tom McKone and Curt Stenger. COIL CHALLENGE 2000 Submission. [ps.gz], [pdf]
-
-28 Tomislav Šmuc. COIL 2000 Challenge Solution based on ILLM-SG Methodology. [ps.gz], [pdf]
-
-29 Uzay Kaymak and Magne Setnes. Target Selection based on fuzzy clustering: a volume prototype approach to CoIL Challenge 2000. [ps.gz], [pdf]
-
--->
-
 
 # Methodology
 
