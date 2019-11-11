@@ -106,11 +106,25 @@ In total 147 participants registered and 43 submitted solutions [@Putten]. In th
 
 # Literature Review
 
-<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
 
 Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regressio Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
 
-The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
+```{r}
+# Recreate the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
+prediction_scores <- data.frame(score = c(38, 46, 53, 58, 65, 72, 74, 80, 83, 86, 91, 94, 95, 96, 97, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 115, 121),
+                                n = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 2, 1, 1, 1, 3, 1, 2, 2, 4, 2, 2, 2, 1, 1))
+ggplot(data=prediction_scores, aes(x=score, y=n)) +
+  geom_bar(stat="identity") +
+  xlab("Policy Owners") +
+  ylab("Submissions") +
+  xlim(37, 122) +
+  ggtitle("Correct Predictions from CoIL 2000 Challenge Submissions")
+```
+
+The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].
+
+Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**
 
 # Methodology
 
