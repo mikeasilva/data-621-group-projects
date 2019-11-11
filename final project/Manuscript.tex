@@ -23,7 +23,7 @@
 }{}
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={Fall 2019 DATA 621 Final Project},
+            pdftitle={A Logistic Regression Approach to CoIL Challenge 2000},
             pdfauthor={Corey Arnouts, Adam Douglas, Jason Givens-Doyle, \& Michael Silva},
             pdfkeywords={CoIL Challenge, Logistic Regression},
             pdfborder={0 0 0},
@@ -63,14 +63,14 @@
 \def\footnote{\protect\rmarkdownfootnote}
 
 
-  \title{Fall 2019 DATA 621 Final Project}
+  \title{A Logistic Regression Approach to CoIL Challenge 2000}
     \author{Corey Arnouts\textsuperscript{1}, Adam Douglas\textsuperscript{1}, Jason Givens-Doyle\textsuperscript{1}, \& Michael Silva\textsuperscript{1}}
     \date{}
   
-\shorttitle{Arnouts et al. Final Project}
+\shorttitle{ }
 \affiliation{
 \vspace{0.5cm}
-\textsuperscript{1} CUNY School of Professional Studies}
+\textsuperscript{1} MS in Data Science Students CUNY School of Professional Studies}
 \keywords{CoIL Challenge, Logistic Regression\newline\indent Word count: X}
 \usepackage{csquotes}
 \usepackage{upgreek}
@@ -99,24 +99,12 @@
 \renewcommand{\efloat@iwrite}[1]{\immediate\expandafter\protected@write\csname efloat@post#1\endcsname{}}
 \makeatother
 
-\authornote{MS in Data Science Students
+\authornote{
 
 Correspondence concerning this article should be addressed to Corey Arnouts, 119 W 31st St., New York, NY 10001. E-mail: \href{mailto:Corey.Arnouts@spsmail.cuny.edu}{\nolinkurl{Corey.Arnouts@spsmail.cuny.edu}}}
 
 \abstract{
-One or two sentences providing a \textbf{basic introduction} to the field, comprehensible to a scientist in any discipline.
-
-Two to three sentences of \textbf{more detailed background}, comprehensible to scientists in related disciplines.
-
-One sentence clearly stating the \textbf{general problem} being addressed by this particular study.
-
-One sentence summarizing the main result (with the words ``\textbf{here we show}'' or their equivalent).
-
-Two or three sentences explaining what the \textbf{main result} reveals in direct comparison to what was thought to be the case previously, or how the main result adds to previous knowledge.
-
-One or two sentences to put the results into a more \textbf{general context}.
-
-Two or three sentences to provide a \textbf{broader perspective}, readily comprehensible to a scientist in any discipline.
+A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
 
 
 }
@@ -127,45 +115,66 @@ Two or three sentences to provide a \textbf{broader perspective}, readily compre
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-Busineses use data science to extract insight from data. It has many practical business applications. The CoIL Challenge showcases the power data science can bring to bear on fundamental business problems.
+Businesses use data science to extract insights from data. It has many practical business applications. Identifying households to include in a marketing campaign is one application. One example using real world data is the Computational Intelligence and Learning (CoIL) Challenge. The CoIL Challenge competition was held from March 17 to May 8 in 2000. The challenge is to:
 
-The CoIL Challenge was a datamining competition organized by the the Computational Intelligence and Learning Cluster. It was held in the period of March-May 2000. The COIL Challenge had two tasks:
-
-\begin{itemize}
-\tightlist
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
 \item
-  Predict which customers are potentially interested in a caravan insurance policy; and
+  Identify potential customers for an insurance policy; and
 \item
-  Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
-\end{itemize}
+  Provide a description of this customer base.
+\end{enumerate}
 
-In total 43 solutions were submitted. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
-
-In this paper we set out to complete the COIL Challenge ourselves using a logistic regression classifier. \textbf{SUMARISE FINDINGS}
+In total 147 participants registered and 43 submitted solutions (Putten, Ruiter, \& Someren, 2000). In this paper we set out to complete the first part of the COIL Challenge. \textbf{SUMARISE FINDINGS?}
 
 \hypertarget{literature-review}{%
 \section{Literature Review}\label{literature-review}}
 
-Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+Participants used a variety of approaches in formulating their submissions including:
+
+\begin{itemize}
+\item
+  Classification Trees with Bagging (White \& Liu, 2000);
+\item
+  C4.5 (Seewald, 2000), (Rickets, 2000);
+\item
+  Evolutionary Algorithm (Koudijs, 2000);
+\item
+  Fuzzy Classifier (János Abonyi, 2000);
+\item
+  Genetic Algorithms and Hill-climbers (Carter, 2000);
+\item
+  Inductive Learning by Logic Minimization (ILLM) (Gamberger, 2000);
+\item
+  K-Means (Vesanto \& Sinkkonen, 2000);
+\item
+  KXEN (Bera \& Lamy, 2000);
+\item
+  Mask Perceptron with Boosting (Leckie \& Ferra, 2000);
+\item
+  Midos Algorithm (Krogel, 2000);
+\item
+  Naïve Bayes (Elkan, 2000); and
+\item
+  Neural Networks(Crocoll, 2000), (Kim \& Street, 2000);
+\item
+  Scoring System (Lewandowski, 2000);
+\item
+  Support Vector Machines; and
+\item
+  XCS (Greenyer, 2000).
+\end{itemize}
+
+The maximum number of policyowners that could be found was 238. The winning model (Elkan, 2000) selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. (Putten et al., 2000)
 
 \hypertarget{methodology}{%
 \section{Methodology}\label{methodology}}
 
-Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
-
-We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study.
-
 \hypertarget{experimentation-and-results}{%
 \section{Experimentation and Results}\label{experimentation-and-results}}
 
-Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
-
-We used R (Version 3.6.1; R Core Team, 2019) and the R-package \emph{papaja} (Version 0.1.0.9842; Aust \& Barth, 2018) for all our analyses.
-
 \hypertarget{discussion-and-conclusions}{%
 \section{Discussion and Conclusions}\label{discussion-and-conclusions}}
-
-Conclude your findings, limitations, and suggest areas for future work.
 
 \newpage
 
@@ -177,11 +186,56 @@ Conclude your findings, limitations, and suggest areas for future work.
 \setlength{\leftskip}{0.5in}
 
 \hypertarget{refs}{}
-\leavevmode\hypertarget{ref-R-papaja}{}%
-Aust, F., \& Barth, M. (2018). \emph{papaja: Create APA manuscripts with R Markdown}. Retrieved from \url{https://github.com/crsh/papaja}
+\leavevmode\hypertarget{ref-Bera}{}%
+Bera, M., \& Lamy, B. (2000). Kxen at coil challenge 2000. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/BERAPS~1.pdf}
 
-\leavevmode\hypertarget{ref-R-base}{}%
-R Core Team. (2019). \emph{R: A language and environment for statistical computing}. Vienna, Austria: R Foundation for Statistical Computing. Retrieved from \url{https://www.R-project.org/}
+\leavevmode\hypertarget{ref-Carter}{}%
+Carter, J. (2000). Coil 2000 challenge submission: Genetic algorithms and hill-climbers. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/CARTER~1.pdf}
+
+\leavevmode\hypertarget{ref-Crocoll}{}%
+Crocoll, W. M. (2000). Artificial neural network portion of coil study. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/CROCOL~1.pdf}
+
+\leavevmode\hypertarget{ref-Elkan}{}%
+Elkan, C. (2000). CoIL challenge 2000 entry. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/ELKANP~1.pdf}
+
+\leavevmode\hypertarget{ref-Gamberger}{}%
+Gamberger, D. (2000). Solution based on illm confirmation rule. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/GAMBER~1.pdf}
+
+\leavevmode\hypertarget{ref-Greenyer}{}%
+Greenyer, A. (2000). Coil 2000 competition. The use of a learning classifier system jxcs. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/GREENY~1.pdf}
+
+\leavevmode\hypertarget{ref-Abonyi}{}%
+János Abonyi, H. R. (2000). A simple fuzzy classifier based on inconsistency analysis of labeled data. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/ABONYI~1.pdf}
+
+\leavevmode\hypertarget{ref-Kim}{}%
+Kim, Y., \& Street, W. N. (2000). CoIL challenge 2000: Choosing and explaining likely caravan insurance customers. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/STREET~1.pdf}
+
+\leavevmode\hypertarget{ref-Koudijs}{}%
+Koudijs, A. (2000). CoIL challenge 2000 submission for the description task. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/KOUDIJ~1.pdf}
+
+\leavevmode\hypertarget{ref-Krogel}{}%
+Krogel, M.-A. (2000). A data mining case study. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/KROGEL~1.pdf}
+
+\leavevmode\hypertarget{ref-Leckie}{}%
+Leckie, C., \& Ferra, H. (2000). COIL challenge 2000 description task. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/LECKIE~1.pdf}
+
+\leavevmode\hypertarget{ref-Lewandowski}{}%
+Lewandowski, A. (2000). How to detect potential customers. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/LEWAND~1.pdf}
+
+\leavevmode\hypertarget{ref-Putten}{}%
+Putten, P., Ruiter, M., \& Someren, M. (2000). CoIL challenge 2000 tasks and results: Predicting and explaining caravan policy ownership.
+
+\leavevmode\hypertarget{ref-Rickets}{}%
+Rickets, P. (2000). CoIL challenge 2000 submission. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/RICKET~1.pdf}
+
+\leavevmode\hypertarget{ref-Seewald}{}%
+Seewald, A. (2000). CoIL challenge 2000 submitted solution. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/SEEWAL~1.pdf}
+
+\leavevmode\hypertarget{ref-Vesanto}{}%
+Vesanto, J., \& Sinkkonen, J. (2000). Submission for the coil challenge 2000. Retrieved from \url{http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/VESANT~1.pdf}
+
+\leavevmode\hypertarget{ref-White}{}%
+White, A. P., \& Liu, W. Z. (2000). The coil challenge: An application of classification trees with bootstrap aggregation. Retrieved from \url{http://www.liacs.nl/~putten/library/cc2000/WHITEP~1.pdf}
 
 \endgroup
 
@@ -190,13 +244,46 @@ R Core Team. (2019). \emph{R: A language and environment for statistical computi
 \hypertarget{appendices}{%
 \section{Appendices}\label{appendices}}
 
-\begin{itemize}
-\tightlist
-\item
-  Supplemental tables and/or figures.
-\item
-  R statistical programming code.
-\end{itemize}
+\hypertarget{r-statistical-programming-code.}{%
+\subsection{R statistical programming code.}\label{r-statistical-programming-code.}}
+
+\begin{verbatim}
+# CoIL Challenge Source Code 
+library(tidyverse) 
+# Download the data sets from UCI if they are not present 
+url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/tic-mld/" 
+files <- c("ticdata2000.txt", "ticeval2000.txt", "tictgts2000.txt") 
+for (file_name in files) { 
+  file_path <- paste0("data/", file_name) 
+  file_url <- paste0(url, file_name) 
+  if (!file.exists(file_path)) { 
+    message(paste("Downloading", file_name)) 
+    download.file(file_url, file_path) 
+  } 
+} 
+# Read in the data 
+df <- read.delim("data/ticdata2000.txt", header = FALSE) 
+names(df) <- c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", 
+               "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", 
+               "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", 
+               "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", 
+               "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2", 
+               "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0", 
+               "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575", 
+               "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", 
+               "PWABEDR", "PWALAND", "PPERSAUT", "PBESAUT", "PMOTSCO", 
+               "PVRAAUT",  "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", 
+               "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL", 
+               "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART", 
+               "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", 
+               "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", 
+               "APERSONG", "AGEZONG", "AWAOREG",  "ABRAND", "AZEILPL", 
+               "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN") 
+eval <- read.delim("data/ticeval2000.txt", header = FALSE) 
+temp <- read.delim("data/tictgts2000.txt", header = FALSE) 
+eval$CARAVAN <- temp$V1 
+names(eval) <- names(df) 
+\end{verbatim}
 
 
 \end{document}

@@ -11,6 +11,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
 library(tidyverse)
+require(gridExtra)
 library(Amelia)
 library(kableExtra)
 library(caret)
@@ -50,11 +51,15 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
 ```{r}
-df <- read.csv("./data/insurance_training_data.csv") %>%
-  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
-  select(-INDEX)
-evaluation <- read.csv("./data/insurance-evaluation-data.csv") %>%
-  select(-INDEX)
+df <- read.csv("./data/insurance_training_data.csv")
+evaluation <- read.csv("./data/insurance-evaluation-data.csv")
+
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
+}
 ```
 
 ## Introduction 
@@ -63,6 +68,7 @@ We have been given a dataset with `r nrow(df)` records representing customers of
 
 ```{r, echo=FALSE}
 df %>% 
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
   ggplot(aes(x=TARGET_FLAG,fill=TARGET_FLAG)) +
   geom_bar() + scale_y_continuous() + scale_fill_brewer(palette="Set1") +
   theme_light() +
@@ -72,7 +78,7 @@ df %>%
 
 The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The second reponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
 
-The second objective will be to train a regression model to predict the cost of a craash, if one occurred.  
+The second objective will be to train a regression model to predict the cost of a crash, if one occurred.  
 
 ```{r, echo=FALSE}
 df %>% filter(TARGET_FLAG == 1) %>%
@@ -90,15 +96,7 @@ Looking at the distribution of the `TARGET_AMT` variable, we can see that the va
 
 ## Data Exploration
 
-Looking at the data, we can see that there are some missing values:
-
-```{r}
-missmap(df, main = "Missing vs Observed Values")
-```
-
-Specifically, there `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable are missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, but only `r df %>% filter(is.na(YOJ),is.na(CAR_AGE)) %>% nrow()` observations missing both of these varables. So, if imputation is not viable here, we will lose as many as 488 observations out of the 8161 in our training set (or about 6%).
-
-## Data Preparation
+We will first look at the summary statistics for the data
 
 ```{r}
 df %>%
@@ -107,9 +105,13 @@ df %>%
   kable_styling()
 ```
 
+There are some missing values that we will need to deal with. There are also some values that seem invalid (i.e. -3 CAR_AGE).
+
+## Data Preparation
+
 ### Fix Data Types
 
-There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.
+There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.  There are also some invalid data that will be changed to NAs.
 
 ```{r}
 strip_dollars <- function(x){
@@ -129,8 +131,19 @@ fix_data_types <- function(messy_df){
     ungroup()
 }
 
-df <- fix_data_types(df)
-evaluation <- fix_data_types(evaluation)
+na_bad_values <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(CAR_AGE = ifelse(CAR_AGE < 0, NA, CAR_AGE))%>%
+    ungroup()
+}
+
+df <- df %>%
+  fix_data_types() %>%
+  na_bad_values()
+evaluation <- evaluation %>%
+  fix_data_types() %>%
+  na_bad_values()
 ```
 
 Now that we have fixed the variables, we can look at a sumamry of the data:
@@ -143,24 +156,8 @@ df %>%
 ```
 
 ### Fix Missing Values
-There are missing values.  We will fill in the missing variables using KNN.
 
-```{r, null_prefix = TRUE}
-set.seed(42)
-knn <- df %>%
-  select(-TARGET_FLAG, -TARGET_AMT, is.numeric()) %>%
-  #na.omit() %>%
-  knnImputation()
-
-for(var in names(df)){
-  impute_me <- is.na(df[[var]])
-  if (nrow(df[impute_me,]) > 0){
-    print(paste("Fixing the", nrow(df[impute_me,]), "missing values in", var, "(df)"))
-    #df[impute_me, var] <- knn[impute_me, var] 
-  }
-}
-```
-
+There are `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable is missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, `r df %>% filter(is.na(AGE)) %>% nrow() ` observations where the variable `AGE` is missing, `r df %>% filter(is.na(INCOME)) %>% nrow() ` observations where the variable `INCOME` is missing, and `r df %>% filter(is.na(HOME_VAL)) %>% nrow() ` observations where the variable `HOME_VAL` is missing.  There are `r nrow(df) - nrow(na.omit(df))`, or `r round(((nrow(df) - nrow(na.omit(df))) / nrow(df)) * 100)`% of the observations missing varables.
 
 ### Feature Creation
 
@@ -189,4 +186,106 @@ set.seed(42)
 train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
 train <- df[train_index,]
 test <- df[-train_index,]
+```
+
+There are `r sum(train$TARGET_FLAG)` out of `r nrow(train)` records in the training data set that have been in an accident.  We want to correct the imballance in the dataset by over sampling this group so our model will do a better job identifying this minority group.
+
+```{r}
+set.seed(42)
+minority <- nrow(train[train$TARGET_FLAG == 1,])
+majority <- nrow(train[train$TARGET_FLAG == 0,])
+diff <- majority - minority
+minority_index <- train[train$TARGET_FLAG == 1,]$INDEX
+over_sample_train <- data.frame(INDEX = sample(minority_index, diff, TRUE)) %>%
+  merge(train, .) %>%
+  bind_rows(train)
+```
+
+The over sampled data frame has `r nrow(over_sample_train)` records, and as you can see in the following figure is now balanced:
+
+```{r, echo=FALSE}
+over_sample_train %>% 
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
+  ggplot(aes(x=TARGET_FLAG, fill=TARGET_FLAG)) +
+  geom_bar() + scale_y_continuous() + scale_fill_brewer(palette="Set1") +
+  theme_light() +
+  theme(legend.position = "none") +
+  labs(x="TARGET_FLAG", y="# Observations")
+```
+
+## Feature Creation
+
+```{r}
+create_features <- function(d){
+  d %>%
+    mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
+    mutate(COLLEGE_EDUCATED = ifelse(EDUCATION %in% c("Bachelors", "Masters", "PhD"), 1, 0)) %>%
+    mutate(URBAN_DRIVER = ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)) %>%
+    mutate(YOUNG_MALE = ifelse(SEX == "M" & AGE < 21, 1, 0)) %>%
+    mutate(RED_SPORTS_CAR = ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)) %>%
+    mutate(HAS_KIDS = ifelse(HOMEKIDS == 0, 0, 1)) %>%
+    mutate(KID_DRIVERS = ifelse(KIDSDRIV == 0, 0, 1))
+}
+
+over_sample_train <- create_features(over_sample_train)
+test <- create_features(test)
+```
+
+## Model Creation
+
+### Baseline Model
+
+```{r}
+evaluate_model <- function(model, test_df){
+  test_df$yhat <- ifelse(predict.glm(model, test_df,"response") >= 0.5, 1, 0)
+  cm <- confusionMatrix(factor(test_df$yhat), factor(test$TARGET_FLAG), "1")
+  deviance <- model$deviance
+  r2 <- 1 - model$deviance / model$null.deviance
+  
+  cat("F1 =", cm$byClass[7],"\nR2 =", r2, "\n\n")
+  print(cm)
+  return(cm)
+}
+```
+
+We will create a simple model to serve as the baseline.  This model posits that drivers history is a good representation of their future.  So drivers that have been in an accident (`OLDCLAIM` > 0 or `AVG_CLAIM` > 0) are more likely to be in an accident.  Conversely those who haven't aren't likely to be in one in the future.
+
+```{r, null_prefix = TRUE, comment=NA}
+baseline_model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), over_sample_train)
+summary(baseline_model)
+
+results <- evaluate_model(baseline_model, test)
+```
+
+
+This simple model has statistically significant predictors.  Applying this model to the test data set indicates this simple model has a `r  round(unname(results$overall['Accuracy'])*100,1)`% accuracy rate.  It correcly identified `r round(unname(results$byClass['Sensitivity'])*100,1)`% of the people with accidents and `r  round(unname(results$byClass['Specificity'])*100,1)`% of those without.  It is better than flipping a coin but not by much.  All future models must outpreform this baseline.
+
+### Risk Taker Model
+
+For this model we are going assume that risk takers are more likely to be in an accident.  To identify those who tend to be risk takers, we are going with the urban legend that those who drive red sports cars are risk takers.  Also young men (16-20) also tend to be risk takers.
+
+```{r, null_prefix = TRUE, comment=NA}
+risk_taker_model <- glm(TARGET_FLAG ~ RED_SPORTS_CAR + YOUNG_MALE, family = binomial(link = "logit"), over_sample_train)
+summary(risk_taker_model)
+
+risk_taker_results <- evaluate_model(risk_taker_model, test)
+```
+
+This model does not have statistically significant predictors, however it has a `r  round(unname(risk_taker_results$overall['Accuracy'])*100,1)`% accuracy rate.  This is because it identified `r  round(unname(risk_taker_results$byClass['Specificity'])*100,1)`% of those who didn't have an accident (and they are more numerous).  When looking at the model's performance on identifying the minority group of interest we see it correcly identified `r round(unname(risk_taker_results$byClass['Sensitivity'])*100,1)`% of the people with accidents.  So while the accuracy rate out preformed the baseline model, this one will not be the model we will use.
+
+### Misc 
+
+```{r, null_prefix = TRUE, comment=NA}
+#"KIDSDRIV"         "AGE"             
+#[6] "HOMEKIDS"         "YOJ"              "INCOME"           "PARENT1"          "HOME_VAL"        
+#[11] "MSTATUS"          "SEX"              "EDUCATION"        "JOB"              "TRAVTIME"        
+#[16] "CAR_USE"          "BLUEBOOK"         "TIF"              "CAR_TYPE"         "RED_CAR"         
+#[21] "OLDCLAIM"         "CLM_FREQ"         "REVOKED"          "MVR_PTS"          "CAR_AGE"         
+#[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
+#[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
+#[36] "KID_DRIVERS"     
+model <- glm(TARGET_FLAG ~ KID_DRIVERS, family = binomial(link = "logit"), over_sample_train)
+summary(model)
+
+model_results <- evaluate_model(model, test)
 ```

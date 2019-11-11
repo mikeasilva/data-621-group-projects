@@ -1,6 +1,6 @@
 ---
-title             : "Fall 2019 DATA 621 Final Project"
-shorttitle        : "Arnouts et al. Final Project"
+title             : "A Logistic Regression Approach to CoIL Challenge 2000"
+shorttitle        : " "
 author: 
   - name          : "Corey Arnouts"
     affiliation   : "1"
@@ -15,26 +15,18 @@ author:
     affiliation   : "1"
 affiliation:
   - id            : "1"
-    institution   : "CUNY School of Professional Studies"
-authornote: |
-  MS in Data Science Students
+    institution   : "MS in Data Science Students CUNY School of Professional Studies"
 abstract: |
-  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
-  
-  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
-  
-  One sentence clearly stating the **general problem** being addressed by  this particular study.
-  
-  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+  A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
+  <!-- https://tinyurl.com/ybremelq 
+    One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
   
   Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
   
   One or two sentences to put the results into a more **general context**.
   
   Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
-  
-  
-  <!-- https://tinyurl.com/ybremelq -->
+  -->
 keywords          : "CoIL Challenge, Logistic Regression"
 wordcount         : "X"
 bibliography      : ["Manuscript.bib"]
@@ -50,7 +42,7 @@ classoption       : "man"
 output:
   papaja::apa6_pdf:
     #citation_package: natbib #biblatex
-  #html_document: default
+  html_document: default
 ---
 
 ```{r setup, include = FALSE}
@@ -60,6 +52,39 @@ output:
 # tinytex::install_tinytex()
 if(!"papaja" %in% rownames(installed.packages())) devtools::install_github("crsh/papaja")
 library("papaja")
+
+library(tidyverse)
+
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
 ```{r analysis-preferences}
@@ -69,40 +94,100 @@ knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 ```
 
 # Introduction
-```{r eval=FALSE, echo=FALSE}
-#Describe the background and motivation of your problem.
-```
-Busineses use data science to extract insight from data.  It has many practical business applications.  The CoIL Challenge showcases the power data science can bring to bear on fundamental business problems.
+<!-- Describe the background and motivation of your problem.-->
 
-The CoIL Challenge was a datamining competition organized by the the Computational Intelligence and Learning Cluster. It was held in the period of March-May 2000.  The COIL Challenge had two tasks:
+Businesses use data science to extract insights from data.  It has many practical business applications.  Identifying households to include in a marketing campaign is one application.  One example using real world data is the Computational Intelligence and Learning (CoIL) Challenge. The CoIL Challenge competition was held from March 17 to May 8 in 2000.  The challenge is to:
 
-- Predict which customers are potentially interested in a caravan insurance policy; and
-- Describe the actual or potential customers; and possibly explain why these customers buy a caravan policy.
+1.  Identify potential customers for an insurance policy; and
 
-In total 43 solutions were submitted. The winners of the challenge were Charles Elkan for the prediction task and Nick Street and YongSeog Kim for the description task.
+2.  Provide a description of this customer base.
 
-In this paper we set out to complete the COIL Challenge ourselves using a logistic regression classifier. **SUMARISE FINDINGS**
+In total 147 participants registered and 43 submitted solutions [@Putten]. In this paper we set out to complete the first part of the COIL Challenge. **SUMARISE FINDINGS?**
 
 # Literature Review
 
-Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
+
+Participants used a variety of approaches in formulating their submissions including: 
+
+- Classification Trees with Bagging [@White];
+
+- C4.5 [@Seewald], [@Rickets];
+
+- Evolutionary Algorithm [@Koudijs];
+
+- Fuzzy Classifier [@Abonyi];
+
+- Genetic Algorithms and Hill-climbers [@Carter];
+
+- Inductive Learning by Logic Minimization (ILLM) [@Gamberger];
+
+- K-Means [@Vesanto];
+
+- KXEN [@Bera];
+
+- Mask Perceptron with Boosting [@Leckie];
+
+- Midos Algorithm [@Krogel];
+
+- Naïve Bayes [@Elkan]; and
+
+- Neural Networks[@Crocoll], [@Kim];
+
+- Scoring System [@Lewandowski];
+
+- Support Vector Machines; and
+
+- XCS [@Greenyer].
+
+The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
+
+<!--
+10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf] - Not sure what they used
+
+18 Petr Mikšovský, Jirí Klema. COIL Challenge 2000. [ps.gz], [pdf]
+
+19 Petri Kontkanen. CoIL 2000 Submission. [ps.gz], [pdf]
+
+20 Philip Brierley. COIL 2000 Challenge: Characteristics of caravan insurance policy owners. [ps.gz] [pdf] 
+
+21 Robert M. Simmonds. ACT Study report using Classification and Regression Tree (CART) Analysis. [ps.gz], [pdf]
+
+22 S. Sathiya Keerthi and Chong Jin Ong. Solution of the CoIL Challenge 2000 Task Using Support Vector Machines. [ps.gz], [pdf] 
+
+23 Serhiy Shtovba, Yakiv Mashnitskiy. The Backpropagation Multilayer Feedforward Neural Network Based Competition Task Solution.
+
+24 Serhiy Shtovba. Phase Intervals and Genetic Algorithms Based Competition Task Solution. [ps.gz], [pdf]
+
+25 Jurgen A. Doornik and Steve Moyle. LOGIT Modelling. [ps.gz], [pdf]
+
+26 Thomas Martini Jorgensen and Christian Linneberg. Subspace Projections – an approach to variable selection and modeling. [ps.gz], [pdf]
+
+27 Tom McKone and Curt Stenger. COIL CHALLENGE 2000 Submission. [ps.gz], [pdf]
+
+28 Tomislav Šmuc. COIL 2000 Challenge Solution based on ILLM-SG Methodology. [ps.gz], [pdf]
+
+29 Uzay Kaymak and Magne Setnes. Target Selection based on fuzzy clustering: a volume prototype approach to CoIL Challenge 2000. [ps.gz], [pdf]
+
+-->
+
 
 # Methodology
 
-Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+<!--Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
 
 We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
 
 # Experimentation and Results
 
-Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+<!--Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
 
 We used `r cite_r("Manuscript.bib")` for all our analyses.
-
+-->
 
 # Discussion and Conclusions
 
-Conclude your findings, limitations, and suggest areas for future work.
+<!--Conclude your findings, limitations, and suggest areas for future work.-->
 
 \newpage
 
@@ -121,6 +206,18 @@ r_refs(file = "Manuscript.bib")
 \newpage
 
 # Appendices
-
+<!--
 - Supplemental tables and/or figures.
-- R statistical programming code.
+-->
+## R statistical programming code.
+
+<code>
+```{r, null_prefix = TRUE, comment=NA}
+conn <- file("CoIL.r", open="r")
+lines <- readLines(conn)
+for (i in 1:length(lines)){
+  cat(lines[i], "\n")
+}
+close(conn)
+```
+</code>
