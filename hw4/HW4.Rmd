@@ -200,7 +200,7 @@ train <- df[train_index,]
 test <- df[-train_index,]
 ```
 
-There are `r sum(train$TARGET_FLAG)` out of `r nrow(train)` records in the training data set that have been in an accident.  We want to correct the imballance in the dataset by over sampling this group so our model will do a better job identifying this minority group.
+There are `r nrow(train[train$TARGET_FLAG == 1,])` out of `r nrow(train)` records in the training data set that have been in an accident.  We want to correct the imballance in the dataset by over sampling this group so our model will do a better job identifying this minority group.
 
 ```{r}
 set.seed(42)
