@@ -18,6 +18,7 @@ library(caret)
 library(DMwR)
 library(scales)
 library(RColorBrewer)
+library(ROCR)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -64,7 +65,9 @@ strip_dollars <- function(x){
 
 ## Introduction 
 
-We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.  The first is a binary flag where one means a person was in a car crash and zero means they were not.  There are `r df %>% filter(TARGET_FLAG == 1) %>% nrow()` rows with a one flag and `r df %>% filter(TARGET_FLAG == 0) %>% nrow()` with a zero flag.
+We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.
+
+The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The response variable here is `TARGET_FLAG` respresenting whether a person had an accident (1) or did not have one (0). 
 
 ```{r, echo=FALSE}
 df %>% 
@@ -76,9 +79,7 @@ df %>%
   labs(x="TARGET_FLAG", y="# Observations")
 ```
 
-The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The second reponse variable is the amount it will cost if the person crashes their car.  The value is zero if the person did not crash their car.
-
-The second objective will be to train a regression model to predict the cost of a crash, if one occurred.  
+The second objective will be to train a regression model to predict the cost of a crash, if one occurred.  The second reponse variable, `TARGET_VALUE`, is the amount it will cost if the person crashes their car. The value is zero if the person did not crash their car.
 
 ```{r, echo=FALSE}
 df %>% filter(TARGET_FLAG == 1) %>%
@@ -138,6 +139,9 @@ na_bad_values <- function(messy_df){
     ungroup()
 }
 
+df$TARGET_FLAG <- factor(df$TARGET_FLAG)
+
+
 df <- df %>%
   fix_data_types() %>%
   na_bad_values()
@@ -164,17 +168,25 @@ There are `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `C
 We will create a log transformed income and home value feature.  We will also create an average claim amount that will hopefully track better with the `TARGET_AMT` variable.
 
 ```{r}
-feature_creation <- function(d){
+# Function to add features
+
+create_features <- function(d){
   d %>%
-    rowwise() %>%
     mutate(LOG_INCOME = log(INCOME + 1),
            LOG_HOME_VAL = log(HOME_VAL + 1),
-           AVG_CLAIM = ifelse(CLM_FREQ > 0, OLDCLAIM / CLM_FREQ, 0)) %>%
-    ungroup()
+           AVG_CLAIM = ifelse(CLM_FREQ > 0, OLDCLAIM / CLM_FREQ, 0),
+           PRIOR_ACCIDENT = factor(ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)),
+           COLLEGE_EDUCATED = factor(ifelse(EDUCATION %in% c("Bachelors", "Masters", "PhD"), 1, 0)),
+           URBAN_DRIVER = factor(ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)),
+           YOUNG_MALE = factor(ifelse(SEX == "M" & AGE < 25, 1, 0)),
+           YOUNG = factor(ifelse(AGE < 25, 1, 0)),
+           RED_SPORTS_CAR = factor(ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)),
+           HAS_KIDS = factor(ifelse(HOMEKIDS == 0, 0, 1)),
+           KID_DRIVERS = factor(ifelse(KIDSDRIV == 0, 0, 1)))
 }
 
-df <- feature_creation(df)
-evaluation <- feature_creation(evaluation)
+df <- create_features(df)
+evaluation <- create_features(evaluation)
 ```
 
 ### Creating Training/Test Data Sets
@@ -211,24 +223,8 @@ over_sample_train %>%
   theme_light() +
   theme(legend.position = "none") +
   labs(x="TARGET_FLAG", y="# Observations")
-```
 
-## Feature Creation
-
-```{r}
-create_features <- function(d){
-  d %>%
-    mutate(PRIOR_ACCIDENT = ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)) %>%
-    mutate(COLLEGE_EDUCATED = ifelse(EDUCATION %in% c("Bachelors", "Masters", "PhD"), 1, 0)) %>%
-    mutate(URBAN_DRIVER = ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)) %>%
-    mutate(YOUNG_MALE = ifelse(SEX == "M" & AGE < 21, 1, 0)) %>%
-    mutate(RED_SPORTS_CAR = ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)) %>%
-    mutate(HAS_KIDS = ifelse(HOMEKIDS == 0, 0, 1)) %>%
-    mutate(KID_DRIVERS = ifelse(KIDSDRIV == 0, 0, 1))
-}
-
-over_sample_train <- create_features(over_sample_train)
-test <- create_features(test)
+over_sample_train$TARGET_FLAG <- factor(over_sample_train$TARGET_FLAG)
 ```
 
 ## Model Creation
@@ -262,7 +258,7 @@ This simple model has statistically significant predictors.  Applying this model
 
 ### Risk Taker Model
 
-For this model we are going assume that risk takers are more likely to be in an accident.  To identify those who tend to be risk takers, we are going with the urban legend that those who drive red sports cars are risk takers.  Also young men (16-20) also tend to be risk takers.
+For this model we are going assume that risk takers are more likely to be in an accident.  To identify those who tend to be risk takers, we are going with the urban legend that those who drive red sports cars are risk takers.  Also young men (16-24) also tend to be risk takers.
 
 ```{r, null_prefix = TRUE, comment=NA}
 risk_taker_model <- glm(TARGET_FLAG ~ RED_SPORTS_CAR + YOUNG_MALE, family = binomial(link = "logit"), over_sample_train)
@@ -271,9 +267,59 @@ summary(risk_taker_model)
 risk_taker_results <- evaluate_model(risk_taker_model, test)
 ```
 
-This model does not have statistically significant predictors, however it has a `r  round(unname(risk_taker_results$overall['Accuracy'])*100,1)`% accuracy rate.  This is because it identified `r  round(unname(risk_taker_results$byClass['Specificity'])*100,1)`% of those who didn't have an accident (and they are more numerous).  When looking at the model's performance on identifying the minority group of interest we see it correcly identified `r round(unname(risk_taker_results$byClass['Sensitivity'])*100,1)`% of the people with accidents.  So while the accuracy rate out preformed the baseline model, this one will not be the model we will use.
+This model only has one statistically significant predictor, however it has a `r  round(unname(risk_taker_results$overall['Accuracy'])*100,1)`% accuracy rate.  This is because it identified `r  round(unname(risk_taker_results$byClass['Specificity'])*100,1)`% of those who didn't have an accident (and they are more numerous).  When looking at the model's performance on identifying the minority group of interest we see it correcly identified `r round(unname(risk_taker_results$byClass['Sensitivity'])*100,1)`% of the people with accidents.  So while the accuracy rate out preformed the baseline model, this one will not be the model we will use.
 
-### Misc 
+### Traditional Model
+
+Traditional wisdom holds that there are a few tried and true predictors of someone's risk of an automobile accident. Namely: age (under 25 vs. 25+), marital status, driving record, distance to work, and the driver's sex (which may or may not be proper to use, but seems to have held throughout the years).
+
+```{r}
+traditional_model <- glm(TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
+                           REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
+             family = binomial(link = "logit"), over_sample_train)
+
+summary(traditional_model)
+
+model_results <- evaluate_model(traditional_model, test)
+```
+
+### Traditional Model with Cross-Validation
+
+Here we try to use cross-validation techniques to improve the traditional model. We go back to the raw training data, because it is typically not-advised to use data that is oversampled prior to cross-validation.
+
+```{r}
+# Get complete cases
+cases <- train %>%
+  select(YOUNG,MSTATUS,PRIOR_ACCIDENT,SEX,REVOKED,MVR_PTS, TRAVTIME, CAR_USE) %>%
+  complete.cases()
+
+temp <- train[cases,]
+
+# Use 5-fold cross-validation
+train_control <- trainControl(method="cv",number=5, sampling="up")
+
+traditional_cv <- train(form = TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
+                           REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
+                        method = "glm", family = "binomial", 
+                        data = temp, trControl = train_control)
+
+traditional_cv
+```
+
+```{r}
+# Evaluating the model
+eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(traditional_cv,newdata=test,type="raw"), prob = 
+predict(traditional_cv,newdata=test,type="prob"))
+
+confusionMatrix(eval$predicted, eval$actual, positive = "1")
+
+pred <- prediction(eval$prob.1, eval$actual)
+auc <- performance(pred, measure = "auc")@y.values[[1]]
+perf <- performance(pred,"tpr","fpr")
+plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
+```
+
+### Misc
 
 ```{r, null_prefix = TRUE, comment=NA}
 #"KIDSDRIV"         "AGE"             
@@ -284,8 +330,12 @@ This model does not have statistically significant predictors, however it has a 
 #[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
 #[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
 #[36] "KID_DRIVERS"     
-model <- glm(TARGET_FLAG ~ KID_DRIVERS, family = binomial(link = "logit"), over_sample_train)
+model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT + KID_DRIVERS + MSTATUS + INCOME +
+             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER,
+             family = binomial(link = "logit"), over_sample_train)
 summary(model)
 
 model_results <- evaluate_model(model, test)
 ```
+
+
