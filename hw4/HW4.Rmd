@@ -227,7 +227,7 @@ over_sample_train %>%
 over_sample_train$TARGET_FLAG <- factor(over_sample_train$TARGET_FLAG)
 ```
 
-## Model Creation
+## Model Creation - Logistic
 
 ### Baseline Model
 
@@ -321,21 +321,83 @@ plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
 
 ### Misc
 
+Here we add meaningful variables to the model until we have a robust model with a decent AUC value.
+
 ```{r, null_prefix = TRUE, comment=NA}
-#"KIDSDRIV"         "AGE"             
-#[6] "HOMEKIDS"         "YOJ"              "INCOME"           "PARENT1"          "HOME_VAL"        
-#[11] "MSTATUS"          "SEX"              "EDUCATION"        "JOB"              "TRAVTIME"        
-#[16] "CAR_USE"          "BLUEBOOK"         "TIF"              "CAR_TYPE"         "RED_CAR"         
-#[21] "OLDCLAIM"         "CLM_FREQ"         "REVOKED"          "MVR_PTS"          "CAR_AGE"         
-#[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
-#[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
-#[36] "KID_DRIVERS"     
-model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT + KID_DRIVERS + MSTATUS + INCOME +
-             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER,
+model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT + KID_DRIVERS + MSTATUS + LOG_INCOME +
+             SEX + CAR_USE + CAR_AGE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER +
+               TIF + TRAVTIME + AGE,
              family = binomial(link = "logit"), over_sample_train)
 summary(model)
 
 model_results <- evaluate_model(model, test)
 ```
 
+```{r}
+# Evaluating the model
+eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(model,newdata=test,type="response"), prob = 
+predict(model,newdata=test,type="response"))
+
+pred <- prediction(eval$predicted, eval$actual)
+auc <- performance(pred, measure = "auc")@y.values[[1]]
+perf <- performance(pred,"tpr","fpr")
+plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
+```
+
+## Model Creation - Linear
+
+First we need to remove the zero values from our train and test sets, as we are only interested in cases where there was an accident claim.
+
+```{r}
+train <- train %>% filter(TARGET_AMT > 0)
+test <- test %>% filter(TARGET_AMT > 0)
+```
+
+
+### Baseline Model
+
+As with the logistic model, we start with a baseline model using the `BLUEBOOK` variable as the sole predictor. All other models will need to beat this baseline.
+
+```{r, null_prefix = TRUE, comment=NA}
+
+baseline_model <- lm(TARGET_AMT ~ BLUEBOOK, train)
+summary(baseline_model)
+```
+
+This model is rather poor, though the predictor is statistically significant in the model. We can build on this model and see if we can build a more robust version.
+
+### Car Model
+
+Here we look at the type of car the person drives, it's age, and how it is used.
+
+```{r}
+car_model <- lm(TARGET_AMT ~ CAR_AGE + CAR_TYPE + CAR_USE, data = train)
+summary(car_model)
+```
+
+Here we see that none of these predictors are significant in this model. In fact, taken one at a time, none are significant individually either.
+
+### Personal Model
+
+Here we use variables pertaining to the driver's personal life: family, income, driving record, and work.
+
+```{r}
+personal_model <- lm(TARGET_AMT ~ MSTATUS + INCOME + KIDSDRIV +
+                       HOME_VAL + AGE + REVOKED + MVR_PTS +
+                       HOMEKIDS, data= train)
+
+summary(personal_model)
+```
+
+Again, we see a very poor model. No variables are statistically significant here (though 2 are close).
+
+### Additive Model
+
+Here we start with `BLUEBOOK` from the baseline model and add to it until we get a decent model.
+
+```{r}
+add_model <- lm(TARGET_AMT ~ BLUEBOOK + CLM_FREQ, data = train)
+
+summary(add_model)
+```
 
