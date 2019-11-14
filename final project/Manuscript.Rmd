@@ -52,7 +52,7 @@ output:
 # tinytex::install_tinytex()
 if(!"papaja" %in% rownames(installed.packages())) devtools::install_github("crsh/papaja")
 library("papaja")
-
+library(kableExtra)
 library(tidyverse)
 
 # Thank you Stack Overflow!
@@ -93,6 +93,29 @@ set.seed(42)
 knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 ```
 
+```{r data}
+df <- read.delim("data/ticdata2000.txt", header = FALSE)
+names(df) <- c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD",
+               "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA",
+               "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG",
+               "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER",
+               "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2",
+               "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0",
+               "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575",
+               "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART",
+               "PWABEDR", "PWALAND", "PPERSAUT", "PBESAUT", "PMOTSCO",
+               "PVRAAUT",  "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN",
+               "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL",
+               "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART",
+               "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO",
+               "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN",
+               "APERSONG", "AGEZONG", "AWAOREG",  "ABRAND", "AZEILPL",
+               "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN")
+eval <- read.delim("data/ticeval2000.txt", header = FALSE)
+temp <- read.delim("data/tictgts2000.txt", header = FALSE)
+eval$CARAVAN <- temp$V1
+names(eval) <- names(df)
+```
 # Introduction
 <!-- Describe the background and motivation of your problem.-->
 
@@ -106,71 +129,42 @@ In total 147 participants registered and 43 submitted solutions [@Putten]. In th
 
 # Literature Review
 
-<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-theart. Please cite the relevant papers where appropriate.-->
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
 
-Participants used a variety of approaches in formulating their submissions including: 
+Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regressio Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
 
-- Classification Trees with Bagging [@White];
+```{r}
+# Recreate the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
+prediction_scores <- data.frame(score = c(38, 46, 53, 58, 65, 72, 74, 80, 83, 86, 91, 94, 95, 96, 97, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 115, 121),
+                                n = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 2, 1, 1, 1, 3, 1, 2, 2, 4, 2, 2, 2, 1, 1))
+ggplot(data=prediction_scores, aes(x=score, y=n)) +
+  geom_bar(stat="identity") +
+  xlab("Policy Owners") +
+  ylab("Submissions") +
+  xlim(37, 122) +
+  ggtitle("Correct Predictions from CoIL 2000 Challenge Submissions")
+```
 
-- C4.5 [@Seewald], [@Rickets];
+The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].
 
-- Evolutionary Algorithm [@Koudijs];
+Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**
 
-- Fuzzy Classifier [@Abonyi];
 
-- Genetic Algorithms and Hill-climbers [@Carter];
+```{r}
+doornik <- function(df){
+  df <- df %>%
+    mutate(PBRAND_2_or_6 = ifelse(PBRAND == 2 | PBRAND == 6, 1, 0),
+           PBRAND_3_or_4 = ifelse(PBRAND == 3 | PBRAND == 4, 1, 0),
+           PPLEZIER_gt_0 = ifelse(PPLEZIER > 0, 1, 0),
+           PPERSAUT_6 = ifelse(PPERSAUT == 6, 1, 0))
+  z <- -4.1 - (0.13 * df$MOPLLAAG) - (0.3 * df$MINK123M) + (0.17 * df$MINKGEM) + (0.54 * (df$ALEVEN + df$AFIETS + df$ABYSTAND)) - df$PBRAND_2_or_6 + (0.8 * df$PBRAND_3_or_4) + (2.4 * df$PPLEZIER_gt_0) + (1.5 * df$PPERSAUT_6) + (0.28 * (df$PWAOREG - df$PLEVEN))
+  p_caravan <- exp(z) / (1 + exp(z))
+  #p_caravan
+  ifelse(p_caravan > 0.5, 1, 0)
+}
 
-- Inductive Learning by Logic Minimization (ILLM) [@Gamberger];
-
-- K-Means [@Vesanto];
-
-- KXEN [@Bera];
-
-- Mask Perceptron with Boosting [@Leckie];
-
-- Midos Algorithm [@Krogel];
-
-- Naïve Bayes [@Elkan]; and
-
-- Neural Networks[@Crocoll], [@Kim];
-
-- Scoring System [@Lewandowski];
-
-- Support Vector Machines; and
-
-- XCS [@Greenyer].
-
-The maximum number of policyowners that could be found was 238.  The winning model [@Elkan] selected 121 policy owners. Random selection results in 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear!) policy owners. [@Putten]
-
-<!--
-10 Gustavo Denicolay and Gaston Morales. CoIL Challenge 2000 Submission for the Description Task. [ps.gz] [pdf] - Not sure what they used
-
-18 Petr Mikšovský, Jirí Klema. COIL Challenge 2000. [ps.gz], [pdf]
-
-19 Petri Kontkanen. CoIL 2000 Submission. [ps.gz], [pdf]
-
-20 Philip Brierley. COIL 2000 Challenge: Characteristics of caravan insurance policy owners. [ps.gz] [pdf] 
-
-21 Robert M. Simmonds. ACT Study report using Classification and Regression Tree (CART) Analysis. [ps.gz], [pdf]
-
-22 S. Sathiya Keerthi and Chong Jin Ong. Solution of the CoIL Challenge 2000 Task Using Support Vector Machines. [ps.gz], [pdf] 
-
-23 Serhiy Shtovba, Yakiv Mashnitskiy. The Backpropagation Multilayer Feedforward Neural Network Based Competition Task Solution.
-
-24 Serhiy Shtovba. Phase Intervals and Genetic Algorithms Based Competition Task Solution. [ps.gz], [pdf]
-
-25 Jurgen A. Doornik and Steve Moyle. LOGIT Modelling. [ps.gz], [pdf]
-
-26 Thomas Martini Jorgensen and Christian Linneberg. Subspace Projections – an approach to variable selection and modeling. [ps.gz], [pdf]
-
-27 Tom McKone and Curt Stenger. COIL CHALLENGE 2000 Submission. [ps.gz], [pdf]
-
-28 Tomislav Šmuc. COIL 2000 Challenge Solution based on ILLM-SG Methodology. [ps.gz], [pdf]
-
-29 Uzay Kaymak and Magne Setnes. Target Selection based on fuzzy clustering: a volume prototype approach to CoIL Challenge 2000. [ps.gz], [pdf]
-
--->
-
+eval$doornik <- doornik(eval)
+```
 
 # Methodology
 
@@ -206,9 +200,11 @@ r_refs(file = "Manuscript.bib")
 \newpage
 
 # Appendices
+
 <!--
 - Supplemental tables and/or figures.
 -->
+
 ## R statistical programming code.
 
 <code>
@@ -221,3 +217,15 @@ for (i in 1:length(lines)){
 close(conn)
 ```
 </code>
+
+\newpage
+## Data Dictionary
+
+```{r, results='asis'}
+data_dictionary <- data.frame(
+  Name=c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2", "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0", "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575", "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", "PWABEDR", "PWAAND", "PPERSAUT", "PBESAUT", "PMOTSCO", "PVRAAUT", "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN"),
+  Description = c("Customer Subtype", "Number of houses", "Avg size household", "Avg age", "Customer main type", "Roman catholic", "Protestant", "Other religion", "No religion", "Married", "Living together", "Other relation", "Singles", "Household without children", "Household with children", "High level education", "Medium level education", "Lower level education", "High status", "Entrepreneur", "Farmer", "Middle management", "Skilled labourers", "Unskilled labourers", "Social class A", "Social class B1", "Social class B2", "Social class C", "Social class D", "Rented house", "Home owners", "1 car", "2 cars", "No car", "National Health Service", "Private health insurance", "Income < 30.000", "Income 30-45.000", "Income 45-75.000", "Income 75-122.000", "Income >123.000", "Average income", "Purchasing power class", "Contribution private third party insurance", "Contribution third party insurance (firms)", "Contribution third party insurane (agriculture)", "Contribution car policies", "Contribution delivery van policies", "Contribution motorcycle/scooter policies", "Contribution lorry policies", "Contribution trailer policies", "Contribution tractor policies", "Contribution agricultural machines policies", "Contribution moped policies", "Contribution life insurances", "Contribution private accident insurance policies", "Contribution family accidents insurance policies", "Contribution disability insurance policies", "Contribution fire policies", "Contribution surfboard policies", "Contribution boat policies", "Contribution bicycle policies", "Contribution property insurance policies", "Contribution social security insurance policies", "Number of private third party insurance", "Number of third party insurance (firms)", "Number of third party insurane (agriculture)", "Number of car policies", "Number of delivery van policies", "Number of motorcycle/scooter policies", "Number of lorry policies", "Number of trailer policies", "Number of tractor policies", "Number of agricultural machines policies", "Number of moped policies", "Number of life insurances", "Number of private accident insurance policies", "Number of family accidents insurance policies", "Number of disability insurance policies", "Number of fire policies", "Number of surfboard policies", "Number of boat policies", "Number of bicycle policies", "Number of property insurance policies", "Number of social security insurance policies", "Number of mobile home policy"))
+#knitr::kable(data_dictionary, "latex", longtable = T) %>%
+#  kable_styling(latex_options = c("repeat_header"))
+apa_table(data_dictionary, longtable = T, booktabs = T, caption = "Data Dictionary")
+```

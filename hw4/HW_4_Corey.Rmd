@@ -21,13 +21,10 @@ library(RColorBrewer)
 library(ROCR)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
-
 # Make sure to keep the default for normal processing.
 default_output_hook <- knitr::knit_hooks$get("output")
-
 # Output hooks handle normal R console output.
 knitr::knit_hooks$set( output = function(x, options) {
-
   comment <- knitr::opts_current$get("comment")
   if( is.na(comment) ) comment <- ""
   can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
@@ -44,9 +41,7 @@ knitr::knit_hooks$set( output = function(x, options) {
     rep <- paste0( "\n", comment )
     x <- gsub( re, rep,  x )
   }
-
   default_output_hook( x, options )
-
 })
 knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
@@ -54,7 +49,6 @@ knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```{r}
 df <- read.csv("./data/insurance_training_data.csv")
 evaluation <- read.csv("./data/insurance-evaluation-data.csv")
-
 strip_dollars <- function(x){
   x <- as.character(x)
   x <- gsub(",", "", x)
@@ -121,7 +115,6 @@ strip_dollars <- function(x){
   x <- gsub("\\$", "", x)
   as.numeric(x)
 }
-
 fix_data_types <- function(messy_df){
   messy_df %>%
     rowwise() %>%
@@ -131,17 +124,13 @@ fix_data_types <- function(messy_df){
            OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
     ungroup()
 }
-
 na_bad_values <- function(messy_df){
   messy_df %>%
     rowwise() %>%
     mutate(CAR_AGE = ifelse(CAR_AGE < 0, NA, CAR_AGE))%>%
     ungroup()
 }
-
 df$TARGET_FLAG <- factor(df$TARGET_FLAG)
-
-
 df <- df %>%
   fix_data_types() %>%
   na_bad_values()
@@ -169,7 +158,6 @@ We will create a log transformed income and home value feature.  We will also cr
 
 ```{r}
 # Function to add features
-
 create_features <- function(d){
   d %>%
     mutate(LOG_INCOME = log(INCOME + 1),
@@ -184,9 +172,16 @@ create_features <- function(d){
            HAS_KIDS = factor(ifelse(HOMEKIDS == 0, 0, 1)),
            KID_DRIVERS = factor(ifelse(KIDSDRIV == 0, 0, 1)))
 }
-
 df <- create_features(df)
 evaluation <- create_features(evaluation)
+
+df$years <- ifelse(df$TIF >5,5,df$TIF)
+
+df$ClaimFreqPeryear <- df$CLM_FREQ/df$years
+
+df$ClaimAMTPerYear <- df$OLDCLAIM/df$years
+
+df$years <- NULL
 ```
 
 ### Creating Training/Test Data Sets
@@ -223,7 +218,6 @@ over_sample_train %>%
   theme_light() +
   theme(legend.position = "none") +
   labs(x="TARGET_FLAG", y="# Observations")
-
 over_sample_train$TARGET_FLAG <- factor(over_sample_train$TARGET_FLAG)
 ```
 
@@ -249,7 +243,6 @@ We will create a simple model to serve as the baseline.  This model posits that 
 ```{r, null_prefix = TRUE, comment=NA}
 baseline_model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), over_sample_train)
 summary(baseline_model)
-
 results <- evaluate_model(baseline_model, test)
 ```
 
@@ -263,7 +256,6 @@ For this model we are going assume that risk takers are more likely to be in an 
 ```{r, null_prefix = TRUE, comment=NA}
 risk_taker_model <- glm(TARGET_FLAG ~ RED_SPORTS_CAR + YOUNG_MALE, family = binomial(link = "logit"), over_sample_train)
 summary(risk_taker_model)
-
 risk_taker_results <- evaluate_model(risk_taker_model, test)
 ```
 
@@ -277,9 +269,7 @@ Traditional wisdom holds that there are a few tried and true predictors of someo
 traditional_model <- glm(TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
                            REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
              family = binomial(link = "logit"), over_sample_train)
-
 summary(traditional_model)
-
 model_results <- evaluate_model(traditional_model, test)
 ```
 
@@ -292,17 +282,13 @@ Here we try to use cross-validation techniques to improve the traditional model.
 cases <- train %>%
   select(YOUNG,MSTATUS,PRIOR_ACCIDENT,SEX,REVOKED,MVR_PTS, TRAVTIME, CAR_USE) %>%
   complete.cases()
-
 temp <- train[cases,]
-
 # Use 5-fold cross-validation
 train_control <- trainControl(method="cv",number=5, sampling="up")
-
 traditional_cv <- train(form = TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
                            REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
                         method = "glm", family = "binomial", 
                         data = temp, trControl = train_control)
-
 traditional_cv
 ```
 
@@ -310,9 +296,7 @@ traditional_cv
 # Evaluating the model
 eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(traditional_cv,newdata=test,type="raw"), prob = 
 predict(traditional_cv,newdata=test,type="prob"))
-
 confusionMatrix(eval$predicted, eval$actual, positive = "1")
-
 pred <- prediction(eval$prob.1, eval$actual)
 auc <- performance(pred, measure = "auc")@y.values[[1]]
 perf <- performance(pred,"tpr","fpr")
@@ -330,12 +314,53 @@ plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
 #[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
 #[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
 #[36] "KID_DRIVERS"     
-model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT + KID_DRIVERS + MSTATUS + INCOME +
-             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER,
+model <- glm(TARGET_FLAG ~ KID_DRIVERS + MSTATUS + INCOME +
+             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER +ClaimAMTPerYear+ClaimFreqPeryear,
              family = binomial(link = "logit"), over_sample_train)
 summary(model)
-
 model_results <- evaluate_model(model, test)
+
+
 ```
 
+```{r}
+test$Prediction <- predict.glm(model, newdata=test, type="response")
+
+test$Prediction_Bool <- ifelse(test$Prediction >.5, '1','0')
+
+# Evaluating the model
+eval <- data.frame(actual = test$TARGET_FLAG, predicted = test$Prediction_Bool, prob = 
+predict(traditional_cv,newdata=test,type="prob"))
+confusionMatrix(eval$predicted, eval$actual, positive = "1")
+pred <- prediction(eval$prob.1, eval$actual)
+auc <- performance(pred, measure = "auc")@y.values[[1]]
+perf <- performance(pred,"tpr","fpr")
+plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
+```
+
+#Regression 
+
+```{r}
+model <- lm(TARGET_AMT ~ KID_DRIVERS + MSTATUS + INCOME +
+             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER +ClaimAMTPerYear+ClaimFreqPeryear,
+             family = poisson, train)
+
+
+summary(model)
+# model_results <- evaluate_model(model, test)
+
+test$Prediction_Amount <- predict(model, newdata=test, type="response")
+
+cases <- test %>%
+  complete.cases()
+test <- test[cases,]
+
+cor(test$Prediction_Amount,test$TARGET_AMT)
+
+
+
+ggplot(test, aes(x=Prediction_Amount, y=TARGET_AMT)) + 
+  geom_point()+
+  geom_smooth(method=lm)
+```
 
