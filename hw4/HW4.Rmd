@@ -347,7 +347,15 @@ M <- amt_train %>%
   keep(is.numeric) %>%
   cor(.)
 corrplot(M, type = "upper")
+```
 
+```{r}
+amt_train %>%
+  keep(is.numeric)%>%
+  select(-INDEX, -TARGET_AMT) %>%
+  cor(., amt_train$TARGET_AMT) %>%
+  kable() %>%
+  kable_styling()
 ```
 
 These two points highlight that there isn't a really strong correlation between most of the predictors and the claim amount.  The only one that is strong is the outlier flag that we created.  Let's finish our exploration by looking at the categoricial variables.  We are removing the `TARGET_AMT_OUTLIERS` from the plot to increase their readability.
@@ -551,14 +559,36 @@ data.frame(yhat = predict(baseline_lm, amt_test), actual = amt_test$TARGET_AMT, 
   kable_styling()
 ```
  
-The challenge will be to create a classifier.  Let's explore the correlations to see what is correlated:
+The challenge will be to create a classifier.  There are `r nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])` out of `r nrow(amt_train)` that are outliers.  Let's create another balanced data set and see if we can build a classifier.
 
-```{r, null_prefix = TRUE}
-amt_train %>%
+```{r}
+set.seed(42)
+minority <- nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])
+majority <- nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 0,])
+diff <- majority - minority
+minority_index <- amt_train[amt_train$TARGET_AMT_OUTLIER == 1,]$INDEX
+over_sample_train_2 <- data.frame(INDEX = sample(minority_index, diff, TRUE)) %>%
+  merge(amt_train, .) %>%
+  bind_rows(amt_train)
+```
+
+Let's explore the correlations to see what is correlated:
+
+```{r}
+over_sample_train_2 %>%
   keep(is.numeric)%>%
-  select(-TARGET_AMT_OUTLIER, -INDEX) %>%
-  cor(., amt_train$TARGET_AMT_OUTLIER) 
+  select(-TARGET_AMT_OUTLIER, -INDEX, -TARGET_AMT) %>%
+  cor(., over_sample_train_2$TARGET_AMT_OUTLIER) %>%
+  kable() %>%
+  kable_styling()
+```
 
+```{r}
+M <- over_sample_train_2 %>%
+  select(-INDEX, -TARGET_AMT) %>%
+  keep(is.numeric) %>%
+  cor(.)
+corrplot(M, type = "upper")
 ```
 
 #### Rural Model
