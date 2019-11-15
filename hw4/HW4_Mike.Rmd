@@ -356,6 +356,36 @@ corrplot(M, type = "upper")
 It looks like `BLUEBOOK` is the only numeric variable that correlates with the claim amount.  We will use it as the baseline and see if we can improve this models.
 
 ```{r}
-amt_fit <- lm(TARGET_AMT ~ BLUEBOOK, amt_train)
-summary(amt_fit)
+rural_fit <- train %>%
+  filter(TARGET_FLAG == 1) %>%
+  filter(URBAN_DRIVER == 0) %>%
+  lm(TARGET_AMT ~ BLUEBOOK + CAR_AGE + TRAVTIME, .)
+urban_fit <- train %>%
+  filter(TARGET_FLAG == 1) %>%
+  filter(URBAN_DRIVER == 1) %>%
+  lm(TARGET_AMT ~ BLUEBOOK, .)
+summary(urban_fit)
+```
+
+```{r}
+M <- train %>%
+  filter(TARGET_FLAG == 1) %>%
+  filter(URBAN_DRIVER == 1) %>%
+  purrr::keep(is.numeric) %>%
+  na.omit() %>%
+  cor(.)
+corrplot(M, type = "upper")
+```
+
+
+
+```{r}
+evaluation$TARGET_FLAG <- ifelse(predict.glm(model, evaluation, "response") >= 0.5, 1, 0)
+# We assume that everyone with a TARGET_FLAG = 0 has a TARGET_AMT as zero.  
+# Urban drivers will use one model, rural another
+evaluation$urban_yhat <- predict(urban_fit, evaluation)
+evaluation$rural_yhat <- predict(rural_fit, evaluation)
+evaluation <- evaluation %>%
+  mutate(TARGET_AMT = ifelse(URBAN_DRIVER == 1, urban_yhat, rural_yhat)) %>%
+  mutate(TARGET_AMT = ifelse(TARGET_FLAG == 0, 0, TARGET_AMT))
 ```
