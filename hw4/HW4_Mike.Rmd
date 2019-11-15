@@ -347,7 +347,15 @@ M <- amt_train %>%
   keep(is.numeric) %>%
   cor(.)
 corrplot(M, type = "upper")
+```
 
+```{r}
+amt_train %>%
+  keep(is.numeric)%>%
+  select(-INDEX, -TARGET_AMT) %>%
+  cor(., amt_train$TARGET_AMT) %>%
+  kable() %>%
+  kable_styling()
 ```
 
 These two points highlight that there isn't a really strong correlation between most of the predictors and the claim amount.  The only one that is strong is the outlier flag that we created.  Let's finish our exploration by looking at the categoricial variables.  We are removing the `TARGET_AMT_OUTLIERS` from the plot to increase their readability.
@@ -381,9 +389,9 @@ Now that we have created datasets and explored them, it is time to build some pr
 For the classification models we will look at the prediction accuracy on the test set.  Especially with the accuracy at discovering those that are in an accident.  Accurate prediction of this minority class indicates a good model.
 
 ```{r}
-evaluate_model <- function(model, test_df){
-  test_df$yhat <- ifelse(predict.glm(model, test_df, "response") >= 0.5, 1, 0)
-  cm <- confusionMatrix(factor(test_df$yhat), factor(test$TARGET_FLAG), "1")
+evaluate_model <- function(model, test_df, target = "TARGET_FLAG", threshold = 0.5){
+  test_df$yhat <- ifelse(predict.glm(model, test_df, "response") >= threshold, 1, 0)
+  cm <- confusionMatrix(factor(test_df$yhat), factor(test_df[[target]]), "1")
   deviance <- model$deviance
   r2 <- 1 - model$deviance / model$null.deviance
   
@@ -489,7 +497,26 @@ This model's predictors are all statistically significant.  Applying this model 
 
 #### Baseline Model
 
-This baseline model is that the amount of the claim is based off of the value of the vehicle.  More expensive vehicles should be more costly to repair than less expensive vehicles.  It is overly simplistic but will serve as a baseline.
+Given the unusual distribution one posible solution would be to predict the claim is the median value.  This is a gross simplification but will serve as the baseline for the linear models to compete against. The way we are looking at how well these models preform is calculating the prediction error as a percentage of the actual and then averaging it across the data set.
+
+```{r}
+the_median <- median(amt_train$TARGET_AMT)
+
+evaluate_lm <- function(yhat, actual){
+  data.frame(yhat = yhat, actual = actual) %>%
+    mutate(error = yhat - actual) %>%
+    mutate(error_percent = error / actual) %>%
+    summarise(`Average Error` = mean(error), `Average Percent` = mean(error_percent)) %>%
+    kable() %>%
+    kable_styling()
+}
+
+evaluate_lm(c(the_median), amt_test$TARGET_AMT)
+```
+
+#### Simple Linear Model
+
+This simple linerar model is that the amount of the claim is based off of the value of the vehicle.  More expensive vehicles should be more costly to repair than less expensive vehicles.  It is overly simplistic.
 
 ```{r}
 baseline_lm <- lm(TARGET_AMT ~ BLUEBOOK, amt_train)
@@ -499,9 +526,7 @@ summary(baseline_lm)
 While this predictor is statistically significant and positive, the model's overall explanitory power is weak.  Let's see how it preformed on the test set:
 
 ```{r}
-data.frame(yhat = predict(baseline_lm, amt_test), actual = amt_test$TARGET_AMT) %>%
-  ggplot(., aes(actual, yhat)) +
-  geom_point()
+evaluate_lm(predict(baseline_lm, amt_test), amt_test$TARGET_AMT)
 ```
 
 #### Outlier Model
@@ -516,6 +541,10 @@ summary(outlier_lm)
 This model is unfair as it is predicting the outcomes based on a predictor derived from the outcome.  Unsuprisingly this model does a really good job.  It has an adjusted $R^2$ of `r summary(outlier_lm)$adj.r.squared`.  
 
 The reason we explored this model is to see if we has a reason to build another classifier.  If we build a second classifier that can predict this variable would it be worth it.  Let's see how the model preforms on the test set: 
+
+```{r}
+evaluate_lm(predict(outlier_lm, amt_test), amt_test$TARGET_AMT)
+```
 
 ```{r}
 temp <- data.frame(yhat = predict(outlier_lm, amt_test), actual = amt_test$TARGET_AMT, TARGET_AMT_OUTLIER = amt_test$TARGET_AMT_OUTLIER) 
@@ -551,15 +580,47 @@ data.frame(yhat = predict(baseline_lm, amt_test), actual = amt_test$TARGET_AMT, 
   kable_styling()
 ```
  
-The challenge will be to create a classifier.  Let's explore the correlations to see what is correlated:
+The challenge will be to create a classifier.  There are `r nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])` out of `r nrow(amt_train)` that are outliers.  Let's create another balanced data set and see if we can build a classifier.
 
-```{r, null_prefix = TRUE}
-amt_train %>%
-  keep(is.numeric)%>%
-  select(-TARGET_AMT_OUTLIER, -INDEX) %>%
-  cor(., amt_train$TARGET_AMT_OUTLIER) 
-
+```{r}
+set.seed(42)
+minority <- nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])
+majority <- nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 0,])
+diff <- majority - minority
+minority_index <- amt_train[amt_train$TARGET_AMT_OUTLIER == 1,]$INDEX
+over_sample_train_2 <- data.frame(INDEX = sample(minority_index, diff, TRUE)) %>%
+  merge(amt_train, .) %>%
+  bind_rows(amt_train)
 ```
+
+Let's explore the correlations to see what is correlated:
+
+```{r}
+over_sample_train_2 %>%
+  keep(is.numeric)%>%
+  select(-TARGET_AMT_OUTLIER, -INDEX, -TARGET_AMT) %>%
+  cor(., over_sample_train_2$TARGET_AMT_OUTLIER) %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r}
+M <- over_sample_train_2 %>%
+  select(-INDEX, -TARGET_AMT) %>%
+  keep(is.numeric) %>%
+  cor(.)
+corrplot(M, type = "upper")
+```
+
+
+
+```{r, null_prefix = TRUE, comment=NA}
+outlier_model <- glm(TARGET_AMT_OUTLIER ~ BLUEBOOK + MVR_PTS + JOB, family = binomial(link = "logit"), over_sample_train_2)
+summary(outlier_model)
+outlier_model_results <- evaluate_model(outlier_model, test, "TARGET_AMT_OUTLIER", 0.5)
+```
+
+
 
 #### Rural Model
 ```{r}
@@ -600,6 +661,14 @@ urban_fit <- train %>%
 summary(urban_fit)
 ```
 
+
+
+```{r}
+temp <- over_sample_train_2 %>%
+  select(-TARGET_FLAG, - TARGET_AMT)
+fft <- FFTrees(TARGET_AMT_OUTLIER~., temp)
+fft
+```
 
 ## Predictions
 
