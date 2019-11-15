@@ -1,6 +1,6 @@
 ---
-title: "Mike's Scratchpad for DATA 621 Homework #4"
-author: "Mike Silva"
+title: "DATA 621 Homework #4"
+author: "Critical Thinking Group 3"
 date: "`r Sys.Date()`"
 output:
   rmdformats::readthedown:
@@ -18,7 +18,8 @@ library(caret)
 library(DMwR)
 library(scales)
 library(RColorBrewer)
-library(FFTrees)
+library(ROCR)
+library(corrplot)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -51,10 +52,6 @@ knitr::knit_hooks$set( output = function(x, options) {
 knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
-## Data Cleanup
-
-The dollar values have dollar signs.  These will be stripped out and converted from a character to numeric.  LOG10 and LN transformations of all dollar values will be preformed.  Categorical data will be translated into dummy variables.
-
 ```{r}
 df <- read.csv("./data/insurance_training_data.csv")
 evaluation <- read.csv("./data/insurance-evaluation-data.csv")
@@ -67,511 +64,298 @@ strip_dollars <- function(x){
 }
 ```
 
+## Introduction 
+
+We have been given a dataset with `r nrow(df)` records representing customers of an auto insurance company.  Each record has two response variables.
+
+The first objective is to train a logistic regression classifier to predict if a person was in a car crash.  The response variable here is `TARGET_FLAG` respresenting whether a person had an accident (1) or did not have one (0). 
+
+```{r, echo=FALSE}
+df %>% 
+  mutate(TARGET_FLAG = as.factor(TARGET_FLAG)) %>%
+  ggplot(aes(x=TARGET_FLAG,fill=TARGET_FLAG)) +
+  geom_bar() + scale_y_continuous() + scale_fill_brewer(palette="Set1") +
+  theme_light() +
+  theme(legend.position = "none") +
+  labs(x="TARGET_FLAG", y="# Observations")
+```
+
+The second objective will be to train a regression model to predict the cost of a crash, if one occurred.  The second reponse variable, `TARGET_VALUE`, is the amount it will cost if the person crashes their car. The value is zero if the person did not crash their car.
+
+```{r, echo=FALSE}
+df %>% filter(TARGET_FLAG == 1) %>%
+  ggplot(aes(x=TARGET_AMT)) + geom_density() +
+  geom_vline(aes(xintercept = mean(TARGET_AMT)), lty=2, col="red") +
+  geom_label(aes(x=mean(TARGET_AMT),y=1,label="mu"),parse=T) +
+  geom_vline(aes(xintercept = median(TARGET_AMT)), lty=2, col="darkgreen") +
+  geom_label(aes(x=median(TARGET_AMT),y=.5,label="median")) +
+  scale_x_log10(labels=comma) + theme_light() +
+  labs(title="TARGET_AMT Density Plot", caption="x-axis is log 10 scale",
+       y="Density", x="LOG(TARGET_AMT)")
+```
+
+Looking at the distribution of the `TARGET_AMT` variable, we can see that the variable is considerably right-skewed. Thus, a LOG transform might be best here.
+
+## Data Exploration
+
+We will first look at the summary statistics for the data
+
 ```{r}
-to_dummies <- function(df, var, drop = FALSE){
-  temp <- data.frame(INDEX = df$INDEX, CAT = df[[var]]) %>%
-    mutate(CAT = as.character(CAT),
-           VAL = 1) %>%
-    spread(CAT, VAL, fill = 0)
-  new_names <- c()
-  for (n in names(temp)){
-    if(n != "INDEX"){
-      n <- paste0(var,"_",n)
-      n <- gsub(" ", "_", n)
-    }
-    new_names <- c(new_names, n)
-  }
-  names(temp) <- new_names
-  
-  if(drop){
-    drops <- c(var)
-    df <- df[ , !(names(df) %in% drops)]
-  }
-  
-  df %>%
-    merge(temp)
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+There are some missing values that we will need to deal with. There are also some values that seem invalid (i.e. -3 CAR_AGE).
+
+## Data Preparation
+
+### Fix Data Types
+
+There are some variables that are currently factors that are dollar values that need to be transformed into numeric variables.  We will do this to both the `df` and `evaluation` data frames.  There are also some invalid data that will be changed to NAs.
+
+```{r}
+strip_dollars <- function(x){
+  x <- as.character(x)
+  x <- gsub(",", "", x)
+  x <- gsub("\\$", "", x)
+  as.numeric(x)
 }
 
-get_driver_type <- function(x, y){
-  if(is.na(x) | is.na(y)){
-    return(NA)
-  }
-  if(y < 40){
-    driver_type <- "Young"
-  } else if (y < 70){
-    driver_type <- "Middle Age "
-  } else {
-    driver_type <- "Older"
-  }
-  if( x == "M"){
-    return(paste(driver_type, "Male"))
-  } else {
-    return(paste(driver_type, "Female"))
-  }
+fix_data_types <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(INCOME = strip_dollars(INCOME),
+           HOME_VAL = strip_dollars(HOME_VAL),
+           BLUEBOOK = strip_dollars(BLUEBOOK),
+           OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
+    ungroup()
 }
 
-temp <- df %>%
-  rowwise() %>%
-  mutate(INCOME = strip_dollars(INCOME),
-         HOME_VAL = strip_dollars(HOME_VAL),
-         BLUEBOOK = strip_dollars(BLUEBOOK),
-         OLDCLAIM = strip_dollars(OLDCLAIM)) %>%
-  mutate(JOB = ifelse(str_length(JOB) > 0, JOB, NA),
-         CAR_AGE = ifelse(str_length(CAR_AGE) > 0, CAR_AGE, NA),
-         EDUCATION = ifelse(EDUCATION == "<High_School", "LT_High_School", EDUCATION),
-         URBANICITY = ifelse(URBANICITY == "Highly Urban/ Urban", "Urban", "Rural")) %>%
-  mutate(DRIVER_TYPE = get_driver_type(SEX, AGE)) %>%
-  ungroup() %>%
+na_bad_values <- function(messy_df){
+  messy_df %>%
+    rowwise() %>%
+    mutate(CAR_AGE = ifelse(CAR_AGE < 0, NA, CAR_AGE))%>%
+    ungroup()
+}
+
+df$TARGET_FLAG <- factor(df$TARGET_FLAG)
+
+
+df <- df %>%
+  fix_data_types() %>%
+  na_bad_values()
+evaluation <- evaluation %>%
+  fix_data_types() %>%
+  na_bad_values()
+```
+
+Now that we have fixed the variables, we can look at a sumamry of the data:
+
+```{r}
+df %>%
+  summary() %>%
+  kable() %>%
+  kable_styling()
+```
+
+### Fix Missing Values
+
+There are `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable is missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, `r df %>% filter(is.na(AGE)) %>% nrow() ` observations where the variable `AGE` is missing, `r df %>% filter(is.na(INCOME)) %>% nrow() ` observations where the variable `INCOME` is missing, and `r df %>% filter(is.na(HOME_VAL)) %>% nrow() ` observations where the variable `HOME_VAL` is missing.  There are `r nrow(df) - nrow(na.omit(df))`, or `r round(((nrow(df) - nrow(na.omit(df))) / nrow(df)) * 100)`% of the observations missing varables.
+
+### Feature Creation
+
+We will create a log transformed income and home value feature.  We will also create an average claim amount that will hopefully track better with the `TARGET_AMT` variable.
+
+```{r}
+# Function to add features
+
+create_features <- function(d){
+  d %>%
+    mutate(LOG_INCOME = log(INCOME + 1),
+           LOG_HOME_VAL = log(HOME_VAL + 1),
+           AVG_CLAIM = ifelse(CLM_FREQ > 0, OLDCLAIM / CLM_FREQ, 0),
+           PRIOR_ACCIDENT = factor(ifelse(OLDCLAIM == 0 & AVG_CLAIM == 0, 0, 1)),
+           COLLEGE_EDUCATED = factor(ifelse(EDUCATION %in% c("Bachelors", "Masters", "PhD"), 1, 0)),
+           URBAN_DRIVER = factor(ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)),
+           YOUNG_MALE = factor(ifelse(SEX == "M" & AGE < 25, 1, 0)),
+           YOUNG = factor(ifelse(AGE < 25, 1, 0)),
+           RED_SPORTS_CAR = factor(ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)),
+           HAS_KIDS = factor(ifelse(HOMEKIDS == 0, 0, 1)),
+           KID_DRIVERS = factor(ifelse(KIDSDRIV == 0, 0, 1)))
+}
+
+df <- create_features(df)
+evaluation <- create_features(evaluation)
+```
+
+### Creating Training/Test Data Sets
+
+Now that we have a complete data set we will split the data into a training (`train`) and test set (`test`). We'll use a 70-30 split between train and test, respectively.
+
+```{r}
+set.seed(42)
+# ADAM THIS BROKE YOUR MODEL
+#train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
+train_index <- createDataPartition(df$TARGET_FLAG, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+There are `r nrow(train[train$TARGET_FLAG == 1,])` out of `r nrow(train)` records in the training data set that have been in an accident.  We want to correct the imballance in the dataset by over sampling this group so our model will do a better job identifying this minority group.
+
+```{r}
+over_sample <- function(df, predictors){
+  vars <- c("INDEX", "TARGET_FLAG", predictors)
+  df <- df[vars] %>%
+    na.omit()
+  set.seed(42)
+  minority <- nrow(df[df$TARGET_FLAG == 1,])
+  majority <- nrow(df[df$TARGET_FLAG == 0,])
+  diff <- majority - minority
+  minority_index <- df[df$TARGET_FLAG == 1,]$INDEX
+  over_sample_df <- data.frame(INDEX = sample(minority_index, diff, TRUE)) %>%
+    merge(df, .) %>%
+    bind_rows(df)
+  return(over_sample_df)
+}
+
+evaluate_model <- function(model, test_df){
+  test_df$yhat <- ifelse(predict.glm(model, test_df,"response") >= 0.5, 1, 0)
+  cm <- confusionMatrix(factor(test_df$yhat), factor(test$TARGET_FLAG), "1")
+  deviance <- model$deviance
+  r2 <- 1 - model$deviance / model$null.deviance
+  
+  cat("F1 =", cm$byClass[7],"\nR2 =", r2, "\n\n")
+  print(cm)
+  return(cm)
+}
+
+```
+
+## Model Creation
+
+### Baseline Model
+
+We will create a simple model to serve as the baseline.  This model posits that drivers history is a good representation of their future.  So drivers that have been in an accident (`OLDCLAIM` > 0 or `AVG_CLAIM` > 0) are more likely to be in an accident.  Conversely those who haven't aren't likely to be in one in the future.
+
+```{r, null_prefix = TRUE, comment=NA}
+temp <- over_sample(train, c("PRIOR_ACCIDENT"))
+baseline_model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT, family = binomial(link = "logit"), temp)
+summary(baseline_model)
+
+results <- evaluate_model(baseline_model, test)
+```
+
+
+This simple model has statistically significant predictors.  Applying this model to the test data set indicates this simple model has a `r  round(unname(results$overall['Accuracy'])*100,1)`% accuracy rate.  It correcly identified `r round(unname(results$byClass['Sensitivity'])*100,1)`% of the people with accidents and `r  round(unname(results$byClass['Specificity'])*100,1)`% of those without.  It is better than flipping a coin but not by much.  All future models must outpreform this baseline.
+
+### Risk Taker Model
+
+For this model we are going assume that risk takers are more likely to be in an accident.  To identify those who tend to be risk takers, we are going with the urban legend that those who drive red sports cars are risk takers.  Also young men (16-24) also tend to be risk takers.
+
+```{r, null_prefix = TRUE, comment=NA}
+risk_taker_model <- glm(TARGET_FLAG ~ RED_SPORTS_CAR + YOUNG_MALE, family = binomial(link = "logit"), over_sample(train, c("RED_SPORTS_CAR", "YOUNG_MALE")))
+summary(risk_taker_model)
+
+risk_taker_results <- evaluate_model(risk_taker_model, test)
+```
+
+This model only has one statistically significant predictor, however it has a `r  round(unname(risk_taker_results$overall['Accuracy'])*100,1)`% accuracy rate.  This is because it identified `r  round(unname(risk_taker_results$byClass['Specificity'])*100,1)`% of those who didn't have an accident (and they are more numerous).  When looking at the model's performance on identifying the minority group of interest we see it correcly identified `r round(unname(risk_taker_results$byClass['Sensitivity'])*100,1)`% of the people with accidents.  So while the accuracy rate out preformed the baseline model, this one will not be the model we will use.
+
+### Traditional Model
+
+Traditional wisdom holds that there are a few tried and true predictors of someone's risk of an automobile accident. Namely: age (under 25 vs. 25+), marital status, driving record, distance to work, and the driver's sex (which may or may not be proper to use, but seems to have held throughout the years).
+
+```{r}
+traditional_model <- glm(TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
+                           REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
+             family = binomial(link = "logit"), over_sample(train, c("YOUNG", "MSTATUS", "PRIOR_ACCIDENT", "SEX", "REVOKED", "MVR_PTS", "TRAVTIME", "CAR_USE")))
+
+summary(traditional_model)
+
+model_results <- evaluate_model(traditional_model, test)
+```
+
+### Traditional Model with Cross-Validation
+
+Here we try to use cross-validation techniques to improve the traditional model. We go back to the raw training data, because it is typically not-advised to use data that is oversampled prior to cross-validation.
+
+```{r}
+# Get complete cases
+cases <- train %>%
+  select(YOUNG,MSTATUS,PRIOR_ACCIDENT,SEX,REVOKED,MVR_PTS, TRAVTIME, CAR_USE) %>%
+  complete.cases()
+
+temp <- train[cases,]
+
+# Use 5-fold cross-validation
+train_control <- trainControl(method="cv",number=5, sampling="up")
+
+traditional_cv <- train(form = TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + SEX +
+                           REVOKED + MVR_PTS + TRAVTIME + CAR_USE,
+                        method = "glm", family = "binomial", 
+                        data = temp, trControl = train_control)
+
+traditional_cv
+```
+
+```{r, eval=FALSE}
+# Evaluating the model
+eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(traditional_cv,newdata=test,type="raw"), prob = predict(traditional_cv,newdata=test,type="prob"))
+
+confusionMatrix(eval$predicted, eval$actual, positive = "1")
+
+pred <- prediction(eval$prob.1, eval$actual)
+auc <- performance(pred, measure = "auc")@y.values[[1]]
+perf <- performance(pred,"tpr","fpr")
+plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
+```
+
+### Manual Model
+
+```{r, null_prefix = TRUE, comment=NA}
+#"KIDSDRIV"         "AGE"             
+#[6] "HOMEKIDS"         "YOJ"              "INCOME"           "PARENT1"          "HOME_VAL"        
+#[11] "MSTATUS"          "SEX"              "EDUCATION"        "JOB"              "TRAVTIME"        
+#[16] "CAR_USE"          "BLUEBOOK"         "TIF"              "CAR_TYPE"         "RED_CAR"         
+#[21] "OLDCLAIM"         "CLM_FREQ"         "REVOKED"          "MVR_PTS"          "CAR_AGE"         
+#[26] "URBANICITY"       "LOG_INCOME"       "LOG_HOME_VAL"     "AVG_CLAIM"        "PRIOR_ACCIDENT"  
+#[31] "COLLEGE_EDUCATED" "URBAN_DRIVER"     "YOUNG_MALE"       "RED_SPORTS_CAR"   "HAS_KIDS"        
+#[36] "KID_DRIVERS"     
+model <- glm(TARGET_FLAG ~ PRIOR_ACCIDENT + KID_DRIVERS + MSTATUS + INCOME +
+             SEX + CAR_USE + COLLEGE_EDUCATED + REVOKED + URBAN_DRIVER,
+             family = binomial(link = "logit"), over_sample(train, c("PRIOR_ACCIDENT", "KID_DRIVERS", "MSTATUS", "INCOME", "SEX", "CAR_USE", "COLLEGE_EDUCATED", "REVOKED", "URBAN_DRIVER")))
+summary(model)
+
+model_results <- evaluate_model(model, test)
+```
+
+## Amount Model
+
+To select build a model of how much the claim amount will be we need to subset the training data to only include those that have accidents.  There will be `r train %>% filter(TARGET_FLAG == 1) %>% nrow()` data points in this set.
+
+```{r}
+amt_train <- train %>%
+  filter(TARGET_FLAG == 1) %>%
+  select(-INDEX, -TARGET_FLAG)
+amt_test <- test %>%
+  filter(TARGET_FLAG == 1)
+```
+
+```{r}
+M <- amt_train %>%
+  purrr::keep(is.numeric) %>%
+  #mutate(TARGET_AMT = log(TARGET_AMT)) %>%
   na.omit() %>%
-  to_dummies("PARENT1", T) %>%
-  to_dummies("KIDSDRIV", T) %>%
-  to_dummies("HOMEKIDS", T) %>%
-  to_dummies("MSTATUS", T) %>%
-  to_dummies("SEX", T) %>%
-  to_dummies("EDUCATION", T) %>%
-  to_dummies("JOB", T) %>%
-  to_dummies("CAR_USE", T) %>%
-  to_dummies("CAR_TYPE", T) %>%
-  to_dummies("RED_CAR", T) %>%
-  to_dummies("REVOKED", T) %>%
-  to_dummies("MVR_PTS", T) %>%
-  to_dummies("URBANICITY", T) %>%
-  to_dummies("DRIVER_TYPE", T) %>%
-  rowwise() %>%
-  mutate(BLUEBOOK = ifelse(BLUEBOOK > 0, BLUEBOOK, 0)) %>%
-  # mutate(LOG10_INCOME = log10(INCOME + 1),
-  #        LN_INCOME = log(INCOME + 1),
-  #        LOG10_HOME_VAL = log10(HOME_VAL + 1),
-  #        LN_HOME_VAL = log(HOME_VAL + 1),
-  #        LOG10_BLUEBOOK = log10(BLUEBOOK + 1),
-  #        LN_BLUEBOOK = log(BLUEBOOK + 1),
-  #        LOG10_OLDCLAIM = log10(OLDCLAIM + 1),
-  #        LN_OLDCLAIM = log(OLDCLAIM + 1)) %>%
-  #mutate(PRIOR_CLAIM = ifelse(CLM_FREQ + OLDCLAIM > 0, 1,0)) %>%
-  ungroup() 
-
-set.seed(42)
-# Split the data
-train_index <- createDataPartition(temp$TARGET_FLAG, p = .7, list = FALSE, times = 1)
-train <- temp[train_index,]
-test <- temp[-train_index,]
-
-# Ballance the data
-minority <- nrow(train[train$TARGET_FLAG == 1,])
-majority <- nrow(train[train$TARGET_FLAG == 0,])
-diff <- majority - minority
-minority_index <- train[train$TARGET_FLAG == 1,]$INDEX
-over_sample_df <- data.frame(INDEX = sample(minority_index, diff, T)) %>%
-  merge(train, .) %>%
-  bind_rows(train)
+  cor(.)
+corrplot(M, type = "upper")
 ```
 
+It looks like `BLUEBOOK` is the only numeric variable that correlates with the claim amount.  We will use it as the baseline and see if we can improve this models.
 
 ```{r}
-set.seed(42)
-fft_train <- over_sample_df %>%
-  select(-TARGET_AMT, -INDEX)#, -OLDCLAIM, -CLM_FREQ)
-fft_test <- test %>%
-  select(-TARGET_AMT, -INDEX)#, -OLDCLAIM, -CLM_FREQ)
-fit <- FFTrees(TARGET_FLAG ~ ., fft_train, fft_test, do.comp = FALSE)
-plot(fit)
-plot(fit, data="test")
-
-test_results = data.frame(yhat = ifelse(predict(fit, test),1,0), TARGET_FLAG = test$TARGET_FLAG)
-table(test_results$yhat, test_results$TARGET_FLAG)
+amt_fit <- lm(TARGET_AMT ~ BLUEBOOK, amt_train)
+summary(amt_fit)
 ```
-The FFTree suggests that past history of filing claims is a good predictor if someone will file a claim in the future.  This could be our baseline model criteria.  
-
-Other variables that seems to come up is if the driver is in an urban location and possibly their home value and if it's a commercial vehicle
-
-```{r}
-library(randomForest)
-rf_df <- df %>%
-  select(-TARGET_AMT, -INDEX) %>%
-  na.omit()
-rf <- randomForest(TARGET_FLAG ~ ., rf_df, ntree=1000,
-                          keep.forest=FALSE, importance=TRUE)
-importance(rf)
-```
-
-```{r}
-hw4_plot <- function(df, var, strip_dollar_signs = FALSE, x_log_scale = FALSE){
-  if(strip_dollar_signs){
-    df$X <- strip_dollars(df[[var]])
-  } else {
-    df$X <- df[[var]]
-  }
-  if(x_log_scale){
-    df$X <- log10(df$X)
-  }
-  
-  plot_1 <- ggplot(df, aes(X, color = as.factor(TARGET_FLAG))) +
-    geom_density() + 
-    scale_color_brewer(palette="Set1") +
-    theme_minimal() +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
-  
-  plot_2 <- ggplot(df, aes(X, TARGET_AMT, color = as.factor(TARGET_FLAG))) +
-    geom_point() +
-    scale_color_brewer(palette="Set1") +
-    scale_y_log10(labels=comma) +
-    theme_minimal() +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
-  
-  grid.arrange(plot_1, plot_2, ncol=2)
-}
-
-hw4_categorical_plot <- function(df, var, strip_dollar_signs = FALSE){
-  if(strip_dollar_signs){
-    df$X <- strip_dollars(df[[var]])
-  } else {
-    df$X <- as.factor(as.character(df[[var]]))
-  }
-
-  temp <- df %>%
-    group_by(X, TARGET_FLAG) %>%
-    tally()
-  temp <- df %>%
-    group_by(X) %>%
-    tally() %>%
-    rename(TOTAL = n) %>%
-    merge(temp) %>%
-    mutate(PERCENT = n / TOTAL)
-  
-  plot_1 <-  temp %>%
-    ggplot(.) +
-    geom_bar(aes(X, PERCENT, fill = as.factor(TARGET_FLAG)), stat="identity") +
-    scale_fill_brewer(palette="Set1") +
-    theme_minimal() +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
-  plot_2 <- df %>%
-    filter(TARGET_FLAG == 1) %>%
-    ggplot(., aes(X, as.factor(TARGET_AMT), color = X)) +
-      geom_boxplot() +
-      #scale_y_log10() +
-      scale_color_brewer(palette="Dark2") + #Paired
-      theme_minimal() +
-      theme(legend.position = "none",
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank())
-  
-  grid.arrange(plot_1, plot_2, ncol=2)
-}
-
-hw4_target_table <- function(df, var, strip_dollar_signs = FALSE){
-  if(strip_dollar_signs){
-    df$X <- strip_dollars(df[[var]])
-  } else {
-    df$X <- df[[var]]
-  }
-  df %>%
-    group_by(X, TARGET_FLAG) %>%
-    tally() %>%
-    spread(TARGET_FLAG, n) %>%
-    rename(Variable = X) %>%
-    kable() %>%
-    kable_styling()
-}
-```
-
-
-### AGE
-
-**Theoretical Effect**
-Very young people tend to be risky.  Maybe very old people also.
-
-```{r} 
-hw4_plot(df, "AGE")
-```
-
-**Observed Effect**
-There is very little information encapsulated in the age of the person.
-
-
-### BLUEBOOK
-
-**Theoretical Effect**
-Unknown effect on probability of collision, but probably effects the payout if there is a crash.
-
-```{r} 
-hw4_plot(df, "BLUEBOOK", TRUE, TRUE)
-```
-
-**Observed Effect**
-The plot suggests that people with low value and high value vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's value.
-
-### CAR_AGE
-
-**Theoretical Effect**
-Unknown effect on probability of collision, but probably effects the payout if there is a crash.
-
-```{r} 
-hw4_plot(df, "CAR_AGE")
-```
-
-**Observed Effect**
-The plot suggests that people with old or new vehicles are equally likely to be in a crash.  It also suggests the payout is not strongly correlated with the vehicle's age.  *There is an observation with a negative value that will need to be cleaned up.*
-
-### CAR_TYPE
-
-**Theoretical Effect**
-Unknown effect on probability of collision, but probably effects the payout if there is a crash.
-
-```{r} 
-hw4_categorical_plot(df, "CAR_TYPE")
-hw4_target_table(df, "CAR_TYPE")
-```
-
-**Observed Effect**
-The plot suggests that the type of vehicle has no effect on the probability of being in an accident, and little effect of the cost.
-
-### CAR_USE
-
-**Theoretical Effect**
-Commercian vehicles are driven more, so might increase probability of collision.
-
-```{r} 
-hw4_categorical_plot(df, "CAR_USE")
-hw4_target_table(df, "CAR_USE")
-```
-
-**Observed Effect**
-The plot suggests that the use does not increase or decrease the probability of being in an accident or the amount of the claim.
-
-### CLM_FREQ
-
-**Theoretical Effect**
-The more claims you filed in the past, the more you are likely to file in the future.
-
-```{r} 
-hw4_categorical_plot(df, "CLM_FREQ")
-hw4_target_table(df, "CLM_FREQ")
-```
-
-**Observed Effect**
-Looks like there are few people who signed up for the frequent accident club.  All jokes aside, the theoretical effect is not observed in the data.
-
-### EDUCATION
-
-**Theoretical Effect**
-Unknown effect, but in theory more educated people tend to drive more safely
-
-```{r} 
-hw4_categorical_plot(df, "EDUCATION")
-hw4_target_table(df, "EDUCATION")
-```
-
-**Observed Effect**
-The theoretical effect has no basis and is somewhat elitist.
-
-
-### HOMEKIDS
-
-**Theoretical Effect**
-Unknown effect
-
-```{r} 
-hw4_categorical_plot(df, "HOMEKIDS")
-hw4_target_table(df, "HOMEKIDS")
-```
-
-**Observed Effect**
-It's interesting to note that those with kids have a 0.34 probability of being in an accident.  Those without kids have a 0.22 probability of being in an accident.  This may be useful.
-
-### HOME_VAL
-
-**Theoretical Effect**
-In theory, home owners tend to drive more responsibly.
-
-```{r} 
-hw4_plot(df, "HOME_VAL", TRUE, TRUE)
-```
-
-**Observed Effect**
-There are a lot of zero values.  I am assuming that it is a zero because they are renters.
-
-### INCOME
-
-**Theoretical Effect**
-In theory, rich people trend to get into fewer crashes.
-
-```{r} 
-hw4_plot(df, "INCOME", TRUE, TRUE)
-```
-
-**Observed Effect**
-There are a lot of zero values.  I am assuming that it is a zero because they are renters.
-
-
-### JOB
-
-**Theoretical Effect**
-In theory, white collar jobs tend to be safer
-
-```{r} 
-hw4_categorical_plot(df, "JOB")
-hw4_target_table(df, "JOB")
-```
-
-**Observed Effect**
-There is a 0.21 probability for white collar job holders being in an accident.  there's a 0.34 probability for the blue collar jobs.  There may be some truth to the theoretical effect.
-
-
-### KIDSDRIV
-
-**Theoretical Effect**
-When teenagers drive your car, ou are more likely to get into crashes
-
-```{r} 
-hw4_categorical_plot(df, "KIDSDRIV")
-hw4_target_table(df, "KIDSDRIV")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### MSTATUS
-
-**Theoretical Effect**
-In theory, married people drive more safely
-
-```{r} 
-hw4_categorical_plot(df, "MSTATUS")
-hw4_target_table(df, "MSTATUS")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### MVR_PTS
-
-**Theoretical Effect**
-If you get lots of traffic tickets, you trend to get into more crashes
-
-```{r} 
-hw4_plot(df, "MVR_PTS")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### OLDCLAIM
-
-**Theoretical Effect**
-If your total payout over the past five years was high, you are more likely to get into crashes.
-
-```{r} 
-hw4_plot(df, "OLDCLAIM", TRUE, TRUE)
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### PARENT1
-
-**Theoretical Effect**
-Unknown effect
-
-```{r} 
-hw4_categorical_plot(df, "PARENT1")
-hw4_target_table(df, "PARENT1")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### RED_CAR
-
-**Theoretical Effect**
-Urban legend says that red cars (espcially red sports cars) are more risky. Is that true?
-
-```{r} 
-hw4_categorical_plot(df, "RED_CAR")
-hw4_target_table(df, "RED_CAR")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-
-### REVOKED
-
-**Theoretical Effect**
-If your license was revoked in the pat 7 years, you probably are a more risky driver.
-
-```{r}
-hw4_categorical_plot(df, "REVOKED")
-hw4_target_table(df, "REVOKED")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### SEX
-
-**Theoretical Effect**
-Urban legend says that women have less crashes then men.  Is that true?
-
-```{r}
-hw4_categorical_plot(df, "SEX")
-hw4_target_table(df, "SEX")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### TIF
-
-**Theoretical Effect**
-People who have been customers for a long time are usually more safe.
-
-```{r}
-hw4_plot(df, "TIF")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### TRAVTIME
-
-**Theoretical Effect**
-Log drives to work usually suggest greater risk
-
-```{r}
-hw4_plot(df, "TRAVTIME")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### URBANICITY
-
-**Theoretical Effect**
-Unknown
-
-```{r}
-hw4_categorical_plot(df, "URBANICITY")
-hw4_target_table(df, "URBANICITY")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-
-### YOJ
-
-**Theoretical Effect**
-People who stay at a job for a long time are usuaslly more safe
-
-```{r}
-hw4_plot(df, "YOJ")
-```
-
-**Observed Effect**
-INSERT TEXT HERE
-Looking at the data, we can see that there are some missing values:
