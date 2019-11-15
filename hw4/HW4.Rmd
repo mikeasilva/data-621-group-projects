@@ -19,6 +19,7 @@ library(DMwR)
 library(scales)
 library(RColorBrewer)
 library(ROCR)
+library(corrplot)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -195,7 +196,9 @@ Now that we have a complete data set we will split the data into a training (`tr
 
 ```{r}
 set.seed(42)
-train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
+# ADAM THIS BROKE YOUR MODEL
+#train_index <- createDataPartition(df$TARGET_AMT, p = .7, list = FALSE, times = 1)
+train_index <- createDataPartition(df$TARGET_FLAG, p = .7, list = FALSE, times = 1)
 train <- df[train_index,]
 test <- df[-train_index,]
 ```
@@ -306,10 +309,9 @@ traditional_cv <- train(form = TARGET_FLAG ~ YOUNG + MSTATUS + PRIOR_ACCIDENT + 
 traditional_cv
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Evaluating the model
-eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(traditional_cv,newdata=test,type="raw"), prob = 
-predict(traditional_cv,newdata=test,type="prob"))
+eval <- data.frame(actual = test$TARGET_FLAG, predicted = predict(traditional_cv,newdata=test,type="raw"), prob = predict(traditional_cv,newdata=test,type="prob"))
 
 confusionMatrix(eval$predicted, eval$actual, positive = "1")
 
@@ -319,7 +321,7 @@ perf <- performance(pred,"tpr","fpr")
 plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
 ```
 
-### Misc
+### Manual Model
 
 ```{r, null_prefix = TRUE, comment=NA}
 #"KIDSDRIV"         "AGE"             
@@ -338,4 +340,30 @@ summary(model)
 model_results <- evaluate_model(model, test)
 ```
 
+## Amount Model
 
+To select build a model of how much the claim amount will be we need to subset the training data to only include those that have accidents.  There will be `r train %>% filter(TARGET_FLAG == 1) %>% nrow()` data points in this set.
+
+```{r}
+amt_train <- train %>%
+  filter(TARGET_FLAG == 1) %>%
+  select(-INDEX, -TARGET_FLAG)
+amt_test <- test %>%
+  filter(TARGET_FLAG == 1)
+```
+
+```{r}
+M <- amt_train %>%
+  purrr::keep(is.numeric) %>%
+  #mutate(TARGET_AMT = log(TARGET_AMT)) %>%
+  na.omit() %>%
+  cor(.)
+corrplot(M, type = "upper")
+```
+
+It looks like `BLUEBOOK` is the only numeric variable that correlates with the claim amount.  We will use it as the baseline and see if we can improve this models.
+
+```{r}
+amt_fit <- lm(TARGET_AMT ~ BLUEBOOK, amt_train)
+summary(amt_fit)
+```
