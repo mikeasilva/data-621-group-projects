@@ -163,8 +163,13 @@ df %>%
 There are `r df %>% filter(is.na(CAR_AGE)) %>% nrow()` observations where the `CAR_AGE` variable is missing, `r df %>% filter(is.na(YOJ)) %>% nrow()` observations where variable `YOJ` is missing, `r df %>% filter(is.na(AGE)) %>% nrow() ` observations where the variable `AGE` is missing, `r df %>% filter(is.na(INCOME)) %>% nrow() ` observations where the variable `INCOME` is missing, and `r df %>% filter(is.na(HOME_VAL)) %>% nrow() ` observations where the variable `HOME_VAL` is missing.  There are `r nrow(df) - nrow(na.omit(df))`, or `r round(((nrow(df) - nrow(na.omit(df))) / nrow(df)) * 100)`% of the observations missing varables.  We will fill in the missing data with the median value.
 
 ```{r}
-df <- df %>% 
-   mutate_at(vars(c("CAR_AGE", "YOJ", "AGE", "INCOME", "HOME_VAL")), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+fix_missing <- function(df) {
+  df %>% 
+    mutate_at(vars(c("CAR_AGE", "YOJ", "AGE", "INCOME", "HOME_VAL")), ~ifelse(is.na(.), median(., na.rm = TRUE), .))
+}
+
+df <- fix_missing(df)
+evaluation <- fix_missing(evaluation)
 ```
 
 ### Feature Creation
@@ -186,6 +191,8 @@ create_features <- function(d){
            URBAN_DRIVER = factor(ifelse(URBANICITY == "Highly Urban/ Urban", 1, 0)),
            YOUNG_MALE = factor(ifelse(SEX == "M" & AGE < 25, 1, 0)),
            YOUNG = factor(ifelse(AGE < 25, 1, 0)),
+           STUDENT = factor(ifelse(JOB == "Student", 1, 0)),
+           MVR_PTS_GT_0 = factor(ifelse(MVR_PTS > 0, 1, 0)),
            RED_SPORTS_CAR = factor(ifelse(CAR_TYPE == "Sports Car" & RED_CAR == "yes", 1, 0)),
            HAS_KIDS = factor(ifelse(HOMEKIDS == 0, 0, 1)),
            KID_DRIVERS = factor(ifelse(KIDSDRIV == 0, 0, 1)),
@@ -514,6 +521,8 @@ evaluate_lm <- function(yhat, actual){
 evaluate_lm(c(the_median), amt_test$TARGET_AMT)
 ```
 
+By simply using the median to predict the values of the claims we would underestimate the actual value on average by $1,600 dollars.  On a percentage basis the error would be 50% of the actual.
+
 #### Simple Linear Model
 
 This simple linerar model is that the amount of the claim is based off of the value of the vehicle.  More expensive vehicles should be more costly to repair than less expensive vehicles.  It is overly simplistic.
@@ -528,6 +537,8 @@ While this predictor is statistically significant and positive, the model's over
 ```{r}
 evaluate_lm(predict(baseline_lm, amt_test), amt_test$TARGET_AMT)
 ```
+
+Well the average error has decreased which is good but the average error share of the actual has doubled.  This is a garbage model.
 
 #### Outlier Model
 
@@ -546,41 +557,9 @@ The reason we explored this model is to see if we has a reason to build another 
 evaluate_lm(predict(outlier_lm, amt_test), amt_test$TARGET_AMT)
 ```
 
-```{r}
-temp <- data.frame(yhat = predict(outlier_lm, amt_test), actual = amt_test$TARGET_AMT, TARGET_AMT_OUTLIER = amt_test$TARGET_AMT_OUTLIER) 
-temp %>%
-  ggplot(., aes(actual, yhat, color=as.factor(TARGET_AMT_OUTLIER))) +
-  geom_point() +
-  scale_color_brewer(palette="Set1") +
-  theme_light() +
-  theme(legend.position = "none") 
-```
-
-```{r}
-temp %>%
-  mutate(error = yhat - actual) %>%
-  mutate(`error %` = (error / actual)*100) %>%
-  group_by(TARGET_AMT_OUTLIER) %>%
-  summarise(error = mean(error),
-            `error %` = mean(`error %`)) %>%
-  kable() %>%
-  kable_styling()
-```
+The predictions on average understate the actual value by $140.  The error as a percent of the actual is close to what we get with just using the median.  The improvement really comes from using a higher value to estimate the claim for the outliers.
  
-It understates the claim prediciton by about $95 for the small claims and $1,100 for the large claims.  The error on the is about 55% of the estimate for the small claims and 31% for the large claims.  In summary it is roughly right.  It would preform a lot better than the baseline model.  The table below offers the similar metrics:
-
-```{r}
-data.frame(yhat = predict(baseline_lm, amt_test), actual = amt_test$TARGET_AMT, TARGET_AMT_OUTLIER = amt_test$TARGET_AMT_OUTLIER) %>%
-  mutate(error = yhat - actual) %>%
-  mutate(`error %` = (error / actual)*100) %>%
-  group_by(TARGET_AMT_OUTLIER) %>%
-  summarise(error = mean(error),
-            `error %` = mean(`error %`)) %>%
-  kable() %>%
-  kable_styling()
-```
- 
-The challenge will be to create a classifier.  There are `r nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])` out of `r nrow(amt_train)` that are outliers.  Let's create another balanced data set and see if we can build a classifier.
+The challenge will be to create a classifier.  There are `r nrow(amt_train[amt_train$TARGET_AMT_OUTLIER == 1,])` out of `r nrow(amt_train)` that are outliers.  Let's create another balanced data set and see if we can build another classifier.
 
 ```{r}
 set.seed(42)
@@ -595,7 +574,7 @@ over_sample_train_2 <- data.frame(INDEX = sample(minority_index, diff, TRUE)) %>
 
 Let's explore the correlations to see what is correlated:
 
-```{r}
+```{r eval=FALSE, echo=FALSE}
 over_sample_train_2 %>%
   keep(is.numeric)%>%
   select(-TARGET_AMT_OUTLIER, -INDEX, -TARGET_AMT) %>%
@@ -612,79 +591,43 @@ M <- over_sample_train_2 %>%
 corrplot(M, type = "upper")
 ```
 
-
+It looks like the `BLUEBOOK` and `PARENT1` are the only variables that are correlated with this outcome.  So let's build the classifier.
 
 ```{r, null_prefix = TRUE, comment=NA}
-outlier_model <- glm(TARGET_AMT_OUTLIER ~ BLUEBOOK + MVR_PTS + JOB, family = binomial(link = "logit"), over_sample_train_2)
+outlier_model <- glm(TARGET_AMT_OUTLIER ~ BLUEBOOK + PARENT1, family = binomial(link = "logit"), over_sample_train_2)
 summary(outlier_model)
-outlier_model_results <- evaluate_model(outlier_model, test, "TARGET_AMT_OUTLIER", 0.5)
+outlier_model_results <- evaluate_model(outlier_model, test, "TARGET_AMT_OUTLIER")
 ```
 
-
-
-#### Rural Model
-```{r}
-M <- train %>%
-  filter(TARGET_FLAG == 1) %>%
-  filter(URBAN_DRIVER == 0) %>%
-  purrr::keep(is.numeric) %>%
-  na.omit() %>%
-  cor(.)
-corrplot(M, type = "upper")
-```
-
-```{r}
-rural_fit <- train %>%
-  filter(TARGET_FLAG == 1) %>%
-  filter(URBAN_DRIVER == 0) %>%
-  lm(TARGET_AMT ~ BLUEBOOK + CAR_AGE + TRAVTIME, .)
-summary(rural_fit)
-```
-
-#### Urban Model 
-
-```{r}
-M <- train %>%
-  filter(TARGET_FLAG == 1) %>%
-  filter(URBAN_DRIVER == 1) %>%
-  purrr::keep(is.numeric) %>%
-  na.omit() %>%
-  cor(.)
-corrplot(M, type = "upper")
-```
-
-```{r}
-urban_fit <- train %>%
-  filter(TARGET_FLAG == 1) %>%
-  filter(URBAN_DRIVER == 1) %>%
-  lm(TARGET_AMT ~ BLUEBOOK, .)
-summary(urban_fit)
-```
-
+Now to test this out.  Based on our linear regression test set we will predict if the observation is likely to be an outlier or not.  We will then estimate the `TARGET_AMT` using the linear model.  We will then evaluate the results of the "model".
 
 
 ```{r}
-temp <- over_sample_train_2 %>%
-  select(-TARGET_FLAG, - TARGET_AMT)
-fft <- FFTrees(TARGET_AMT_OUTLIER~., temp)
-fft
+temp <- amt_test
+temp$TARGET_AMT_OUTLIER <- ifelse(predict.glm(outlier_model, amt_test, "response") >= 0.5, 1, 0)
+temp$TARGET_AMT_yhat <- predict(outlier_lm, amt_test)
+evaluate_lm(temp$TARGET_AMT_yhat, temp$TARGET_AMT)
 ```
+
+So through this somewhat convoluted approach we have done slightly better than using the median.
 
 ## Predictions
 
+The final predictions will use the alternative traditional model to predict the `TARGET_FLAG` variable, then pass it through the second classifier which predicts the `TARGET_AMT_OUTLIER` flag.  We then use the linear model to make the final amount prediction.
 
 ```{r}
-predictions <- function(df, classifier, linear_model_1, linear_model_2){
-  df$TARGET_FLAG <- ifelse(predict.glm(classifier, df, "response") >= 0.5, 1, 0)
+predictions <- function(df, classifier_1, linear_model, classifier_2){
+  df$TARGET_FLAG <- ifelse(predict.glm(classifier_1, df, "response") >= 0.5, 1, 0)
   # We assume that everyone with a TARGET_FLAG = 0 has a TARGET_AMT as zero.  
-  # We then refine it with the two linear models
-  df$model_1_yhat <- predict(linear_model_1, df)
-  df$model_2_yhat <- predict(linear_model_2, df)
+  # We then refine it with the outlier model.
+  df$TARGET_AMT_OUTLIER <- ifelse(predict.glm(classifier_2, df, "response") >= 0.5, 1, 0)
+  df$yhat <- predict(linear_model, df)
   df <- df %>%
-    mutate(TARGET_AMT = ifelse(URBAN_DRIVER == 1, model_1_yhat, model_2_yhat)) %>%
-    mutate(TARGET_AMT = ifelse(TARGET_FLAG == 0, 0, TARGET_AMT))
+    mutate(TARGET_AMT = ifelse(TARGET_AMT_OUTLIER == 1, yhat, 0)) %>%
+    mutate(TARGET_AMT = ifelse(TARGET_FLAG == 0, 0, TARGET_AMT)) %>%
+    select(-yhat, -TARGET_AMT_OUTLIER)
   return(df)
 }
 
-evaluation <- predictions(evaluation, model, urban_fit, rural_fit)
+evaluation <- predictions(evaluation, model, outlier_lm, outlier_model)
 ```
