@@ -346,21 +346,13 @@ plot(perf,main="ROC Curve", sub=paste0("AUC: ",round(auc,3)))
 
 ## Model Creation - Linear
 
-First we need to remove the zero values from our train and test sets, as we are only interested in cases where there was an accident claim.
-
-```{r}
-train <- train %>% filter(TARGET_AMT > 0)
-test <- test %>% filter(TARGET_AMT > 0)
-```
-
-
 ### Baseline Model
 
 As with the logistic model, we start with a baseline model using the `BLUEBOOK` variable as the sole predictor. All other models will need to beat this baseline.
 
 ```{r, null_prefix = TRUE, comment=NA}
 
-baseline_model <- lm(TARGET_AMT ~ BLUEBOOK, train)
+baseline_model <- lm(log(TARGET_AMT+1) ~ BLUEBOOK -1, train)
 summary(baseline_model)
 ```
 
@@ -371,7 +363,7 @@ This model is rather poor, though the predictor is statistically significant in 
 Here we look at the type of car the person drives, it's age, and how it is used.
 
 ```{r}
-car_model <- lm(TARGET_AMT ~ CAR_AGE + CAR_TYPE + CAR_USE, data = train)
+car_model <- lm(log(TARGET_AMT+1) ~ CAR_AGE + CAR_TYPE + CAR_USE, data = train)
 summary(car_model)
 ```
 
@@ -382,9 +374,9 @@ Here we see that none of these predictors are significant in this model. In fact
 Here we use variables pertaining to the driver's personal life: family, income, driving record, and work.
 
 ```{r}
-personal_model <- lm(TARGET_AMT ~ MSTATUS + INCOME + KIDSDRIV +
-                       HOME_VAL + AGE + REVOKED + MVR_PTS +
-                       HOMEKIDS, data= train)
+personal_model <- lm(log(TARGET_AMT+1) ~ MSTATUS + INCOME + KIDSDRIV +
+                       log(HOME_VAL+1) + AGE + REVOKED + MVR_PTS +
+                       HAS_KIDS, data= train)
 
 summary(personal_model)
 ```
@@ -396,7 +388,8 @@ Again, we see a very poor model. No variables are statistically significant here
 Here we start with `BLUEBOOK` from the baseline model and add to it until we get a decent model.
 
 ```{r}
-add_model <- lm(TARGET_AMT ~ BLUEBOOK + CLM_FREQ, data = train)
+add_model <- lm(1/sqrt(TARGET_AMT+1) ~ BLUEBOOK + CAR_AGE,
+                data = train)
 
 summary(add_model)
 ```
