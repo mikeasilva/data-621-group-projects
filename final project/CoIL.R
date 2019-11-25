@@ -22,13 +22,14 @@ names(df) <- c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD",
                "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575",
                "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART",
                "PWABEDR", "PWALAND", "PPERSAUT", "PBESAUT", "PMOTSCO",
-               "PVRAAUT",  "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN",
-               "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL",
-               "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART",
-               "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO",
-               "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN",
-               "APERSONG", "AGEZONG", "AWAOREG",  "ABRAND", "AZEILPL",
-               "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN")
+               "PVRAAUT",  "PAANHANG", "PTRACTOR", "PWERKT", "PBROM",
+               "PLEVEN", "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", 
+               "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND",
+               "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT",
+               "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT",
+               "ABROM", "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG",
+               "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED",
+               "ABYSTAND", "CARAVAN")
 eval <- read.delim("data/ticeval2000.txt", header = FALSE)
 temp <- read.delim("data/tictgts2000.txt", header = FALSE)
 eval$CARAVAN <- temp$V1
