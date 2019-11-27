@@ -1,0 +1,112 @@
+---
+title: "Data-621-Project-5"
+author: "Critical Thinking Group 3"
+date: "11/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+```{r}
+library(tidyverse)
+require(gridExtra)
+library(Amelia)
+library(kableExtra)
+library(caret)
+library(DMwR)
+library(scales)
+library(purrr)
+library(RColorBrewer)
+library(ROCR)
+library(corrplot)
+```
+
+
+
+
+```{r}
+
+
+df <- read.csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw5/data/wine-training-data.csv")
+
+hold_out_data <- read.csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw5/data/wine-evaluation-data.csv")
+```
+
+```{r}
+str(df)
+```
+#Look at the Distribution of the Target Variable
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = df, aes(x = TARGET)) +
+  geom_bar(width = 1, color = 'black',fill = I('orange'))+ggtitle("Number of Wine Cases Purchased")
+
+```
+
+
+## Training Test Split
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+
+
+
+## Lets Look at some decision Trees wooo!
+
+```{r}
+source("https://raw.githubusercontent.com/crarnouts/Data_605_Final/master/RandomForestNulls_testing.R")
+
+test <- RF_with_Nulls(train,test,"TARGET",.5,10,5,.005,4,1)
+
+```
+
+```{r}
+
+df_complete <- df[complete.cases(df), ]
+
+library(corrplot)
+M <- cor(df_complete)
+corrplot(M, method = "circle") #plot matrix
+library("PerformanceAnalytics")
+```
+
+## Analyze Relationship Between Variables
+
+### Strong Relationship between Expert Rating (STARS) and the number of cases purchased
+```{r}
+# Set color by cond
+ggplot(df_complete, aes(x=as.factor(STARS), y=TARGET,color =as.factor(STARS))) + geom_boxplot()+
+  labs(title = "Cases of Wine Purchased Compared to Expert Rating", x = "Expert Rating", y = "Cases Purchased", color = "Expert Rating")
+
+```
+
+
+```{r}
+# Set color by cond
+ggplot(df_complete, aes(x=as.factor(LabelAppeal), y=TARGET,color =as.factor(LabelAppeal))) + geom_boxplot()+
+  labs(title = "Cases of Wine Purchased Compared to Label Appeal", x = "Label Appeal", y = "Cases Purchased", color = "LabelAppeal")
+
+```
+
+
+## Fitting a Poisson Model to the Data
+
+```{r}
+model <- glm(TARGET ~ LabelAppeal + STARS +AcidIndex+VolatileAcidity,
+             family = poisson, train)
+
+summary(model)
+
+test$Prediction <- predict.glm(model, newdata=test, type="response")
+
+cor(test$Prediction,test$TARGET)
+```
+
+
