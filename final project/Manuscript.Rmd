@@ -1,21 +1,8 @@
 ---
 title             : "A Logistic Regression Approach to CoIL Challenge 2000"
 shorttitle        : " "
-author: 
-  - name          : "Corey Arnouts"
-    affiliation   : "1"
-    corresponding : yes    # Define only one corresponding author
-    address       : "119 W 31st St., New York, NY 10001"
-    email         : "Corey.Arnouts@spsmail.cuny.edu"
-  - name          : "Adam Douglas"
-    affiliation   : "1"
-  - name          : "Jason Givens-Doyle"
-    affiliation   : "1"
-  - name          : "Michael Silva"
-    affiliation   : "1"
-affiliation:
-  - id            : "1"
-    institution   : "MS in Data Science Students CUNY School of Professional Studies"
+author            : "Corey Arnouts, Adam Douglas, Jason Givens-Doyle, Michael Silva"
+affiliation       : "MS in Data Science Students CUNY School of Professional Studies"
 abstract: |
   A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
   <!-- https://tinyurl.com/ybremelq 
@@ -39,7 +26,9 @@ mask              : no
 draft             : no
 documentclass     : "apa6"
 classoption       : "man"
-output:
+output: 
+  word_document:
+    reference_docx: word-template.docx
   papaja::apa6_pdf:
     #citation_package: natbib #biblatex
   html_document: default
@@ -54,6 +43,7 @@ if(!"papaja" %in% rownames(installed.packages())) devtools::install_github("crsh
 library("papaja")
 library(kableExtra)
 library(tidyverse)
+library(pander)
 
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
@@ -87,13 +77,13 @@ knitr::knit_hooks$set( output = function(x, options) {
 knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
 ```
 
-```{r analysis-preferences}
+```{r analysis-preferences, echo=FALSE}
 # Seed for random number generation
 set.seed(42)
 knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 ```
 
-```{r data}
+```{r data, echo=FALSE}
 df <- read.delim("data/ticdata2000.txt", header = FALSE)
 names(df) <- c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD",
                "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA",
@@ -125,32 +115,36 @@ Businesses use data science to extract insights from data.  It has many practica
 
 2.  Provide a description of this customer base.
 
-In total 147 participants registered and 43 submitted solutions [@Putten]. In this paper we set out to complete the first part of the COIL Challenge. **SUMARISE FINDINGS?**
-
-# Literature Review
-
-<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
-
-Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regressio Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
-
-```{r}
+```{r, echo=FALSE}
 # Recreate the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
 prediction_scores <- data.frame(score = c(38, 46, 53, 58, 65, 72, 74, 80, 83, 86, 91, 94, 95, 96, 97, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 115, 121),
                                 n = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 2, 1, 1, 1, 3, 1, 2, 2, 4, 2, 2, 2, 1, 1))
 ggplot(data=prediction_scores, aes(x=score, y=n)) +
   geom_bar(stat="identity") +
-  xlab("Policy Owners") +
-  ylab("Submissions") +
-  xlim(37, 122) +
-  ggtitle("Correct Predictions from CoIL 2000 Challenge Submissions")
+  xlab("Number of Correct Predictions") +
+  ylab("CoIL Challenge Submissions") +
+  xlim(37, 122)
 ```
 
-The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].
+In total 147 participants registered and 43 submitted solutions [@Putten]. The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].
 
-Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**
+In this paper we set out to complete the first part of the COIL Challenge. <!--**SUMARISE FINDINGS?**-->
 
 
-```{r}
+
+
+
+
+# Literature Review
+
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
+
+Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
+
+<!--Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**-->
+
+
+```{r, echo=FALSE}
 doornik <- function(df){
   df <- df %>%
     mutate(PBRAND_2_or_6 = ifelse(PBRAND == 2 | PBRAND == 6, 1, 0),
@@ -186,7 +180,7 @@ We used `r cite_r("Manuscript.bib")` for all our analyses.
 \newpage
 
 # References
-```{r create_references}
+```{r create_references, echo=FALSE}
 r_refs(file = "Manuscript.bib")
 ```
 
@@ -205,10 +199,21 @@ r_refs(file = "Manuscript.bib")
 - Supplemental tables and/or figures.
 -->
 
+## Data Dictionary
+
+```{r, results='asis', echo=FALSE}
+data_dictionary <- data.frame(
+  Name=c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2", "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0", "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575", "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", "PWABEDR", "PWAAND", "PPERSAUT", "PBESAUT", "PMOTSCO", "PVRAAUT", "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN"),
+  Description = c("Customer Subtype", "Number of houses", "Avg size household", "Avg age", "Customer main type", "Roman catholic", "Protestant", "Other religion", "No religion", "Married", "Living together", "Other relation", "Singles", "Household without children", "Household with children", "High level education", "Medium level education", "Lower level education", "High status", "Entrepreneur", "Farmer", "Middle management", "Skilled labourers", "Unskilled labourers", "Social class A", "Social class B1", "Social class B2", "Social class C", "Social class D", "Rented house", "Home owners", "1 car", "2 cars", "No car", "National Health Service", "Private health insurance", "Income < 30.000", "Income 30-45.000", "Income 45-75.000", "Income 75-122.000", "Income >123.000", "Average income", "Purchasing power class", "Contribution private third party insurance", "Contribution third party insurance (firms)", "Contribution third party insurane (agriculture)", "Contribution car policies", "Contribution delivery van policies", "Contribution motorcycle/scooter policies", "Contribution lorry policies", "Contribution trailer policies", "Contribution tractor policies", "Contribution agricultural machines policies", "Contribution moped policies", "Contribution life insurances", "Contribution private accident insurance policies", "Contribution family accidents insurance policies", "Contribution disability insurance policies", "Contribution fire policies", "Contribution surfboard policies", "Contribution boat policies", "Contribution bicycle policies", "Contribution property insurance policies", "Contribution social security insurance policies", "Number of private third party insurance", "Number of third party insurance (firms)", "Number of third party insurane (agriculture)", "Number of car policies", "Number of delivery van policies", "Number of motorcycle/scooter policies", "Number of lorry policies", "Number of trailer policies", "Number of tractor policies", "Number of agricultural machines policies", "Number of moped policies", "Number of life insurances", "Number of private accident insurance policies", "Number of family accidents insurance policies", "Number of disability insurance policies", "Number of fire policies", "Number of surfboard policies", "Number of boat policies", "Number of bicycle policies", "Number of property insurance policies", "Number of social security insurance policies", "Number of mobile home policy"))
+pander(data_dictionary)
+```
+
+\newpage
+
 ## R statistical programming code.
 
 <code>
-```{r, null_prefix = TRUE, comment=NA}
+```{r, null_prefix = TRUE, comment=NA, echo=FALSE}
 conn <- file("CoIL.r", open="r")
 lines <- readLines(conn)
 for (i in 1:length(lines)){
@@ -218,14 +223,3 @@ close(conn)
 ```
 </code>
 
-\newpage
-## Data Dictionary
-
-```{r, results='asis'}
-data_dictionary <- data.frame(
-  Name=c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2", "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0", "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575", "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", "PWABEDR", "PWAAND", "PPERSAUT", "PBESAUT", "PMOTSCO", "PVRAAUT", "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN"),
-  Description = c("Customer Subtype", "Number of houses", "Avg size household", "Avg age", "Customer main type", "Roman catholic", "Protestant", "Other religion", "No religion", "Married", "Living together", "Other relation", "Singles", "Household without children", "Household with children", "High level education", "Medium level education", "Lower level education", "High status", "Entrepreneur", "Farmer", "Middle management", "Skilled labourers", "Unskilled labourers", "Social class A", "Social class B1", "Social class B2", "Social class C", "Social class D", "Rented house", "Home owners", "1 car", "2 cars", "No car", "National Health Service", "Private health insurance", "Income < 30.000", "Income 30-45.000", "Income 45-75.000", "Income 75-122.000", "Income >123.000", "Average income", "Purchasing power class", "Contribution private third party insurance", "Contribution third party insurance (firms)", "Contribution third party insurane (agriculture)", "Contribution car policies", "Contribution delivery van policies", "Contribution motorcycle/scooter policies", "Contribution lorry policies", "Contribution trailer policies", "Contribution tractor policies", "Contribution agricultural machines policies", "Contribution moped policies", "Contribution life insurances", "Contribution private accident insurance policies", "Contribution family accidents insurance policies", "Contribution disability insurance policies", "Contribution fire policies", "Contribution surfboard policies", "Contribution boat policies", "Contribution bicycle policies", "Contribution property insurance policies", "Contribution social security insurance policies", "Number of private third party insurance", "Number of third party insurance (firms)", "Number of third party insurane (agriculture)", "Number of car policies", "Number of delivery van policies", "Number of motorcycle/scooter policies", "Number of lorry policies", "Number of trailer policies", "Number of tractor policies", "Number of agricultural machines policies", "Number of moped policies", "Number of life insurances", "Number of private accident insurance policies", "Number of family accidents insurance policies", "Number of disability insurance policies", "Number of fire policies", "Number of surfboard policies", "Number of boat policies", "Number of bicycle policies", "Number of property insurance policies", "Number of social security insurance policies", "Number of mobile home policy"))
-#knitr::kable(data_dictionary, "latex", longtable = T) %>%
-#  kable_styling(latex_options = c("repeat_header"))
-apa_table(data_dictionary, longtable = T, booktabs = T, caption = "Data Dictionary")
-```
