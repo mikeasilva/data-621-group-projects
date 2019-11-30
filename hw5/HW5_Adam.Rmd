@@ -1,0 +1,238 @@
+---
+title: "Data-621-Project-5"
+author: "Critical Thinking Group 3"
+date: "11/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+require(gridExtra)
+library(Amelia)
+library(kableExtra)
+library(caret)
+library(DMwR)
+library(scales)
+library(purrr)
+library(RColorBrewer)
+library(ROCR)
+library(corrplot)
+```
+
+## Importing Data
+
+```{r}
+# Read in training data
+df <- read.csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw5/data/wine-training-data.csv")
+
+# Read in evaluation data
+hold_out_data <- read.csv("https://raw.githubusercontent.com/mikeasilva/data-621-group-projects/master/hw5/data/wine-evaluation-data.csv")
+```
+
+Datasets were provided for both training and evaluation. The training dataset consists of `r nrow(df)` observations while the evaluation dataset (which we will set aside for now) consists of `r nrow(hold_out_data)` observations.
+
+```{r}
+str(df)
+summary(df)
+```
+
+Looking at our data, we have a good number of missing values in some variables. We'll try to reason a way to impute these values (if possible).
+
+### Missing Values
+
+#### STARS
+
+First we start with the `STARS` variable. There are `r df %>% filter(is.na(STARS)) %>% nrow()` observations without a value populated. Looking at what is populated, the variable was imported as a numeric value, though it is used as a discrete variable. Since it isn't too much of a stretch to view rating as a numeric here (e.g. a 2 star wine is half as good as a 4 star wine), we'll keep the variable type as-is.
+
+For the NA values, it makes sense that unrated wines would be somewhere in the middle of the pack or, possibly below it (after all, if it was such a good wine, why hasn't it come to the attention of experts to be rated?). The summary above shows a mean and median value at or close to 2, so we'll set our NAs to 2.
+
+```{r}
+df$STARS <- ifelse(is.na(df$STARS),2,df$STARS)
+```
+
+#### Alcohol
+
+The `Alcohol` variable is a measure of the alcohol content. Looking at our summary, we see that there are some missing values. However, there are also some negative values - `r df %>% filter(Alcohol < 0) %>% nrow()` to be specific.
+
+Obviously a wine cannot have a negative alcohol value, so we will assume data-entry issues caused the minus sign and change those to positive values. For missing values, we will assume they are alcohol-free variants (which do exist!) and set the value to zero.
+
+```{r}
+df$Alcohol <- ifelse(is.na(df$Alcohol),0,df$Alcohol)
+df$Alcohol <- abs(df$Alcohol)
+```
+
+#### Others
+
+For other variables with NA values such as: `ResidualSugar`, `Chlorides`, `FreeSulfurDioxide`, `TotalSulfurDioxide`, `pH`, and `Sulphates`, we will impute using the median value.
+
+```{r}
+df$ResidualSugar <- ifelse(is.na(df$ResidualSugar),
+                           median(df$ResidualSugar,na.rm=T),
+                           df$ResidualSugar)
+
+df$Chlorides <- ifelse(is.na(df$Chlorides),
+                           median(df$Chlorides,na.rm=T),
+                           df$Chlorides)
+
+df$FreeSulfurDioxide <- ifelse(is.na(df$FreeSulfurDioxide),
+                           median(df$FreeSulfurDioxide,na.rm=T),
+                           df$FreeSulfurDioxide)
+
+df$TotalSulfurDioxide <- ifelse(is.na(df$TotalSulfurDioxide),
+                           median(df$TotalSulfurDioxide,na.rm=T),
+                           df$TotalSulfurDioxide)
+
+df$pH <- ifelse(is.na(df$pH),
+                           median(df$pH,na.rm=T),
+                           df$pH)
+
+df$Sulphates <- ifelse(is.na(df$Sulphates),
+                      median(df$Sulphates,na.rm=T),
+                      df$Sulphates)
+```
+
+## Data Exploration
+
+### Look at the Distribution of the Target Variable
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = df, aes(x = factor(TARGET))) +
+  geom_bar(width = 1, color = 'black',fill = I('orange')) +
+  ggtitle("Number of Wine Cases Purchased") +
+  scale_x_discrete(breaks = seq(0,8,1)) +
+  theme_light() +
+  theme(
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(linetype=2),
+        panel.grid.minor.y = element_blank()
+        ) +
+  labs(x="TARGET variable",y="Count")
+```
+
+Other than wines that have no cases sold, the distribution seems to be somewhat normal in shape.
+
+### Training Test Split
+
+Next we will look at splitting the data into a training and testing set at a standard 70-30 split between train and test:
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+### Decision Trees
+
+Now that we have our testing set, we will use decision trees to help us decide which variables to potentially use in our linear model.
+
+```{r, message=FALSE, results="hide"}
+source("https://raw.githubusercontent.com/crarnouts/Data_605_Final/master/RandomForestNulls_testing.R")
+
+RF_with_Nulls(train,test,"TARGET",.5,10,5,.005,4,1)
+
+```
+
+We can also use the correlation between variables to try and deduce the best predictor variables to use in a linear model:
+
+```{r, message=FALSE}
+library(corrplot)
+M <- cor(test)
+corrplot(M, method = "circle") #plot matrix
+```
+
+Here we see the `TARGET` variable (which is our dependent variable) has some correlation with `LabelAppeal`, `AcidIndex`, and `STARS`. These variables also make appearances in the decision trees above, so they bear some investigation. Let's look at these relationships in turn.
+
+### Analyze Relationship Between Variables
+
+#### Variable STARS
+
+```{r}
+# Set color by cond
+ggplot(df, aes(x=as.factor(STARS), y=TARGET,color =as.factor(STARS))) + geom_boxplot()+
+  labs(title = "Cases of Wine Purchased Compared to Expert Rating", x = "Expert Rating", y = "Cases Purchased", color = "Expert Rating")
+
+```
+
+There is some clear correlation, as expected.
+
+#### Variable LabelAppeal
+
+```{r}
+# Set color by cond
+ggplot(df, aes(x=as.factor(LabelAppeal), y=TARGET,color =as.factor(LabelAppeal))) + geom_boxplot()+
+  labs(title = "Cases of Wine Purchased Compared to Label Appeal Rating", x = "Label Rating", y = "Cases Purchased", color = "Label Rating")
+
+```
+
+Here we see a rather obvious correlation between cases purchased and the rating of the label. This will certainly be a variable of interest in our model.
+
+#### Variable AcidIndex
+
+```{r}
+# Set color by cond
+ggplot(df, aes(x=as.factor(AcidIndex), y=TARGET,color =as.factor(AcidIndex))) + geom_boxplot() +
+  labs(title = "Cases of Wine Purchased Compared to Mean Acidity", x = "Acidity", y = "Cases Purchased", color = "Acidity")
+
+```
+
+Here we see a far less clear correlation, but there is still value to possibly including it in our model.
+
+## Modeling
+
+### Poisson Models
+
+Since we are modeling counts, we will attempt a Poisson model first using the three variables we identified above:
+
+```{r}
+model <- glm(TARGET ~ LabelAppeal + STARS + AcidIndex,
+             family = poisson, train)
+
+summary(model)
+
+test$Prediction <- predict.glm(model, newdata=test, type="response")
+```
+
+Here we have a correlation of `r round(cor(test$Prediction,test$TARGET,use="complete.obs"),2)` with our `TARGET` variable and a residual sum of squares (RSS) of `r sum(model$residuals^2)`.
+
+Although a good start, this model doesn't fit all that well. Next, we try to add some additional variables:
+
+```{r}
+model2 <- glm(TARGET ~ LabelAppeal + STARS + AcidIndex + VolatileAcidity +
+                TotalSulfurDioxide + FreeSulfurDioxide + Chlorides,
+             family = poisson, train)
+
+summary(model2)
+
+test$Prediction2 <- predict.glm(model2, newdata=test, type="response")
+```
+
+This model has additional significant variables, we have the same correlation of `r round(cor(test$Prediction,test$TARGET,use="complete.obs"),2)` with our `TARGET` variable as in model #1 above, and the residual sum of squares (RSS) of `r sum(model$residuals^2)` is actually slightly worse.
+
+### Diagnostics
+
+We'll look at the residual values and see what they tell us about our models thus far. We'll plot the adjusted residuals: $\frac{\text{Observed} - \text{Predicted}}{\text{SD}(\text{Observed} - \text{Predicted}}$ versus the observed values and see if any pattern emerges.
+
+```{r}
+# Model 1
+residModel1 <- data.frame(obs = test$TARGET, diff = (test$TARGET - test$Prediction))
+residModel1$adjRes <- (residModel1$diff / sd(residModel1$diff))
+
+# Model 2
+residModel2 <- data.frame(obs = test$TARGET, diff = (test$TARGET - test$Prediction2))
+residModel2$adjRes <- (residModel2$diff / sd(residModel2$diff))
+
+residModel1 %>% ggplot(aes(x=factor(obs), y=adjRes)) + geom_boxplot() +
+  labs(title="Adjusted Residuals", subtitle="Poisson Model #1",
+       x="Observed Value",y="Adjusted Residual")
+
+residModel2 %>% ggplot(aes(x=factor(obs), y=adjRes)) + geom_boxplot() +
+  labs(title="Adjusted Residuals", subtitle="Poisson Model #2",
+       x="Observed Value",y="Adjusted Residual")
+```
+
+There is an obvious pattern with our residuals. We tend to overestimate more on larger observed values of `TARGET`.
+
+
