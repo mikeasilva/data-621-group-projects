@@ -125,7 +125,7 @@ prepare_data <- function(df){
                       "17" = "17 Fresh masters in the city",
                       "18" = "18 Single youth",
                       "19" = "19 Suburban youth",
-                      "20" = "20 Etnically diverse",
+                      "20" = "20 Ethnically diverse",
                       "21" = "21 Young urban have-nots",
                       "22" = "22 Mixed apartment dwellers",
                       "23" = "23 Young and rising",
