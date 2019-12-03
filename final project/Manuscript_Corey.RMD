@@ -1,0 +1,297 @@
+---
+title             : "A Logistic Regression Approach to CoIL Challenge 2000"
+shorttitle        : " "
+author            : "Corey Arnouts, Adam Douglas, Jason Givens-Doyle, Michael Silva"
+affiliation       : "MS in Data Science Students CUNY School of Professional Studies"
+abstract: |
+  A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
+  
+  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
+  
+  One or two sentences to put the results into a more **general context**.
+  
+  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
+  -->
+  <!-- https://tinyurl.com/ybremelq 
+    One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+keywords          : "CoIL Challenge, Logistic Regression"
+wordcount         : "X"
+bibliography      : ["Manuscript.bib"]
+floatsintext      : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : no
+mask              : no
+draft             : no
+documentclass     : "apa6"
+classoption       : "man"
+output: 
+  html_document: default
+  word_document:
+    reference_docx: word-template.docx
+  papaja::apa6_pdf:
+    #citation_package: natbib #biblatex
+---
+
+```{r setup, include = FALSE}
+# Documentation at https://crsh.github.io/papaja_man/
+# If you have no use for TeX beyond rendering R Markdown documents, I recommend you use TinyTex.
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+if(!"papaja" %in% rownames(installed.packages())) devtools::install_github("crsh/papaja")
+library("papaja")
+library(kableExtra)
+library(tidyverse)
+library(pander)
+
+# Thank you Stack Overflow!
+# A Prefix nulling hook.
+
+# Make sure to keep the default for normal processing.
+default_output_hook <- knitr::knit_hooks$get("output")
+
+# Output hooks handle normal R console output.
+knitr::knit_hooks$set( output = function(x, options) {
+
+  comment <- knitr::opts_current$get("comment")
+  if( is.na(comment) ) comment <- ""
+  can_null <- grepl( paste0( comment, "\\s*\\[\\d?\\]" ),
+                     x, perl = TRUE)
+  do_null <- isTRUE( knitr::opts_current$get("null_prefix") )
+  if( can_null && do_null ) {
+    # By default R print output aligns at the right brace.
+    align_index <- regexpr( "\\]", x )[1] - 1
+    # Two cases: start or newline
+    re <- paste0( "^.{", align_index, "}\\]")
+    rep <- comment
+    x <- gsub( re, rep,  x )
+    re <- paste0( "\\\n.{", align_index, "}\\]")
+    rep <- paste0( "\n", comment )
+    x <- gsub( re, rep,  x )
+  }
+
+  default_output_hook( x, options )
+
+})
+knitr::opts_template$set("kill_prefix"=list(comment=NA, null_prefix=TRUE))
+```
+
+```{r analysis-preferences, echo=FALSE}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+```
+
+```{r data, echo=FALSE}
+df <- read.delim("data/ticdata2000.txt", header = FALSE)
+names(df) <- c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD",
+               "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA",
+               "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG",
+               "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER",
+               "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2",
+               "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0",
+               "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575",
+               "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART",
+               "PWABEDR", "PWALAND", "PPERSAUT", "PBESAUT", "PMOTSCO",
+               "PVRAAUT",  "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN",
+               "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL",
+               "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART",
+               "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO",
+               "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN",
+               "APERSONG", "AGEZONG", "AWAOREG",  "ABRAND", "AZEILPL",
+               "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN")
+eval <- read.delim("data/ticeval2000.txt", header = FALSE)
+temp <- read.delim("data/tictgts2000.txt", header = FALSE)
+eval$CARAVAN <- temp$V1
+names(eval) <- names(df)
+```
+# Introduction
+<!-- Describe the background and motivation of your problem.-->
+
+Businesses use data science to extract insights from data.  It has many practical business applications.  Identifying households to include in a marketing campaign is one application.  One example using real world data is the Computational Intelligence and Learning (CoIL) Challenge. The CoIL Challenge competition was held from March 17 to May 8 in 2000.  The challenge is to:
+
+1.  Identify potential customers for an insurance policy; and
+
+2.  Provide a description of this customer base.
+
+```{r, echo=FALSE}
+# Recreate the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
+prediction_scores <- data.frame(score = c(38, 46, 53, 58, 65, 72, 74, 80, 83, 86, 91, 94, 95, 96, 97, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 115, 121),
+                                n = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 2, 1, 1, 1, 3, 1, 2, 2, 4, 2, 2, 2, 1, 1))
+ggplot(data=prediction_scores, aes(x=score, y=n)) +
+  geom_bar(stat="identity") +
+  xlab("Number of Correct Predictions") +
+  ylab("CoIL Challenge Submissions") +
+  xlim(37, 122)
+```
+
+In total 147 participants registered and 43 submitted solutions [@Putten]. The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].
+
+In this paper we set out to complete the first part of the COIL Challenge. <!--**SUMARISE FINDINGS?**-->
+
+# Analysis
+
+```{r}
+colnames(df)<-c("Customer_Subtype","Number_of_houses", "Avg_size_household", "Avg_age", "Customer_main_type", "Roman_catholic", "Protestant","Other_religion", "No_religion", "Married", "Living_together", "Other_relation", "Singles", "Household_without_children", "Household_with_children", "High_level_education", "Medium_level_education", "Lower_level_education", "High_status", "Entrepreneur", "Farmer", "Middle_management", "Skilled_labourers", "Unskilled_labourers", "Social_class_A", "Social_class_B1", "Social_class_B2", "Social_class_C", "Social_class_D", "Rented_house", "Home_owners", "1_car", "2_cars", "No_car", "National_Health_Service", "Private_health_insurance", "Income_<_30.000", "Income_30-45.000", "Income_45-75.000", "Income_75-122.000", "Income_>123.000", "Average_income", "Purchasing_power_class", "Contribution_private_third_party_insurance", "Contribution_third_party_insurance_(firms)", "Contribution_third_party_insurane_(agriculture)", "Contribution_car_policies", "Contribution_delivery_van_policies", "Contribution_motorcycle/scooter_policies", "Contribution_lorry_policies", "Contribution_trailer_policies", "Contribution_tractor_policies", "Contribution_agricultural_machines_policies", "Contribution_moped_policies", "Contribution_life_insurances", "Contribution_private_accident_insurance_policies", "Contribution_family_accidents_insurance_policies", "Contribution_disability_insurance_policies", "Contribution_fire_policies", "Contribution_surfboard_policies", "Contribution_boat_policies", "Contribution_bicycle_policies", "Contribution_property_insurance_policies", "Contribution_social_security_insurance_policies", "Number_of_private_third_party_insurance", "Number_of_third_party_insurance_(firms)", "Number_of_third_party_insurane_(agriculture)", "Number_of_car_policies", "Number_of_delivery_van_policies", "Number_of_motorcycle/scooter_policies", "Number_of_lorry_policies", "Number_of_trailer_policies", "Number_of_tractor_policies", "Number_of_agricultural_machines_policies", "Number_of_moped_policies", "Number_of_life_insurances", "Number_of_private_accident_insurance_policies", "Number_of_family_accidents_insurance_policies", "Number_of_disability_insurance_policies", "Number_of_fire_policies", "Number_of_surfboard_policies", "Number_of_boat_policies", "Number_of_bicycle_policies", "Number_of_property_insurance_policies", "Number_of_social_security_insurance_policies", "Number_of_mobile_home_policy")
+
+colnames(eval)<-c("Customer_Subtype","Number_of_houses", "Avg_size_household", "Avg_age", "Customer_main_type", "Roman_catholic", "Protestant","Other_religion", "No_religion", "Married", "Living_together", "Other_relation", "Singles", "Household_without_children", "Household_with_children", "High_level_education", "Medium_level_education", "Lower_level_education", "High_status", "Entrepreneur", "Farmer", "Middle_management", "Skilled_labourers", "Unskilled_labourers", "Social_class_A", "Social_class_B1", "Social_class_B2", "Social_class_C", "Social_class_D", "Rented_house", "Home_owners", "1_car", "2_cars", "No_car", "National_Health_Service", "Private_health_insurance", "Income_<_30.000", "Income_30-45.000", "Income_45-75.000", "Income_75-122.000", "Income_>123.000", "Average_income", "Purchasing_power_class", "Contribution_private_third_party_insurance", "Contribution_third_party_insurance_(firms)", "Contribution_third_party_insurane_(agriculture)", "Contribution_car_policies", "Contribution_delivery_van_policies", "Contribution_motorcycle/scooter_policies", "Contribution_lorry_policies", "Contribution_trailer_policies", "Contribution_tractor_policies", "Contribution_agricultural_machines_policies", "Contribution_moped_policies", "Contribution_life_insurances", "Contribution_private_accident_insurance_policies", "Contribution_family_accidents_insurance_policies", "Contribution_disability_insurance_policies", "Contribution_fire_policies", "Contribution_surfboard_policies", "Contribution_boat_policies", "Contribution_bicycle_policies", "Contribution_property_insurance_policies", "Contribution_social_security_insurance_policies", "Number_of_private_third_party_insurance", "Number_of_third_party_insurance_(firms)", "Number_of_third_party_insurane_(agriculture)", "Number_of_car_policies", "Number_of_delivery_van_policies", "Number_of_motorcycle/scooter_policies", "Number_of_lorry_policies", "Number_of_trailer_policies", "Number_of_tractor_policies", "Number_of_agricultural_machines_policies", "Number_of_moped_policies", "Number_of_life_insurances", "Number_of_private_accident_insurance_policies", "Number_of_family_accidents_insurance_policies", "Number_of_disability_insurance_policies", "Number_of_fire_policies", "Number_of_surfboard_policies", "Number_of_boat_policies", "Number_of_bicycle_policies", "Number_of_property_insurance_policies", "Number_of_social_security_insurance_policies", "Number_of_mobile_home_policy","doornik")
+
+
+
+
+
+```
+
+
+# Relationships Between PolicyTypes
+```{r}
+
+policies <- df[ , grepl( "policies" , names( df ) ) ]
+policies <- policies[ , grepl( "Number" , names( policies ) ) ]
+
+policies2 <-sub("Number_of_", "", colnames(policies))
+policies3 <-sub("_policies", "", policies2)
+policies4 <-sub("insurance", "", policies3)
+policies5 <-sub("_", " ", policies4)
+policies6 <-sub("_", " ", policies5)
+
+
+colnames(policies)<- policies6
+
+cordf <- df %>% select(Social_class_A,Average_income)
+
+library(corrplot)
+M <- cor(policies)
+corrplot(M) #plot matrix
+
+
+```
+
+
+
+
+# Relationships Between Variables
+```{r}
+features <- df[ , !grepl( "policies" , names( df ) ) ]
+features <- features[ , !grepl( "Number" , names( features ) ) ]
+features <- features[ , !grepl( "Insurance" , names( features ) ) ]
+features <- features[ , !grepl( "insurance" , names( features ) ) ]
+features <- features[ , !grepl( "insurane" , names( features ) ) ]
+#features <- features[ , grepl( "education|income|Income" , names( features ) ) ]
+
+library(corrplot)
+M <- cor(features)
+corrplot(M,tl.cex = .5) #plot matrix
+
+
+
+features <- df[ , !grepl( "policies" , names( df ) ) ]
+features <- features[ , !grepl( "Number" , names( features ) ) ]
+features <- features[ , !grepl( "Insurance" , names( features ) ) ]
+features <- features[ , !grepl( "insurance" , names( features ) ) ]
+features <- features[ , !grepl( "insurane" , names( features ) ) ]
+features <- features[ , grepl( "education|income|Income" , names( features ) ) ]
+
+library(corrplot)
+M <- cor(features)
+corrplot(M,tl.cex = .5) #plot matrix
+
+
+
+```
+
+
+
+
+
+
+
+# Literature Review
+
+<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
+
+Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
+
+<!--Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**-->
+
+
+```{r, echo=FALSE}
+doornik <- function(df){
+  df <- df %>%
+    mutate(PBRAND_2_or_6 = ifelse(PBRAND == 2 | PBRAND == 6, 1, 0),
+           PBRAND_3_or_4 = ifelse(PBRAND == 3 | PBRAND == 4, 1, 0),
+           PPLEZIER_gt_0 = ifelse(PPLEZIER > 0, 1, 0),
+           PPERSAUT_6 = ifelse(PPERSAUT == 6, 1, 0))
+  z <- -4.1 - (0.13 * df$MOPLLAAG) - (0.3 * df$MINK123M) + (0.17 * df$MINKGEM) + (0.54 * (df$ALEVEN + df$AFIETS + df$ABYSTAND)) - df$PBRAND_2_or_6 + (0.8 * df$PBRAND_3_or_4) + (2.4 * df$PPLEZIER_gt_0) + (1.5 * df$PPERSAUT_6) + (0.28 * (df$PWAOREG - df$PLEVEN))
+  p_caravan <- exp(z) / (1 + exp(z))
+  #p_caravan
+  ifelse(p_caravan > 0.5, 1, 0)
+}
+
+eval$doornik <- doornik(eval)
+```
+
+# Methodology
+
+<!--Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+
+We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
+
+# Experimentation and Results
+
+<!--Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+
+We used `r cite_r("Manuscript.bib")` for all our analyses.
+-->
+
+# Discussion and Conclusions
+
+<!--Conclude your findings, limitations, and suggest areas for future work.-->
+
+\newpage
+
+# References
+```{r create_references, echo=FALSE}
+r_refs(file = "Manuscript.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id = "refs"></div>
+\endgroup
+
+\newpage
+
+# Appendices
+
+<!--
+- Supplemental tables and/or figures.
+-->
+
+## Data Dictionary
+
+```{r, results='asis', echo=FALSE}
+data_dictionary <- data.frame(
+  Name=c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK", "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV", "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD", "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA", "MSKB1", "MSKB2", "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2", "MAUT0", "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575", "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", "PWABEDR", "PWAAND", "PPERSAUT", "PBESAUT", "PMOTSCO", "PVRAAUT", "PAANHANG", "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", "PPERSONG", "PGEZONG", "PWAOREG", "PBRAND", "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED", "PBYSTAND", "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN"),
+  Description = c("Customer Subtype", "Number of houses", "Avg size household", "Avg age", "Customer main type", "Roman catholic", "Protestant", "Other religion", "No religion", "Married", "Living together", "Other relation", "Singles", "Household without children", "Household with children", "High level education", "Medium level education", "Lower level education", "High status", "Entrepreneur", "Farmer", "Middle management", "Skilled labourers", "Unskilled labourers", "Social class A", "Social class B1", "Social class B2", "Social class C", "Social class D", "Rented house", "Home owners", "1 car", "2 cars", "No car", "National Health Service", "Private health insurance", "Income < 30.000", "Income 30-45.000", "Income 45-75.000", "Income 75-122.000", "Income >123.000", "Average income", "Purchasing power class", "Contribution private third party insurance", "Contribution third party insurance (firms)", "Contribution third party insurane (agriculture)", "Contribution car policies", "Contribution delivery van policies", "Contribution motorcycle/scooter policies", "Contribution lorry policies", "Contribution trailer policies", "Contribution tractor policies", "Contribution agricultural machines policies", "Contribution moped policies", "Contribution life insurances", "Contribution private accident insurance policies", "Contribution family accidents insurance policies", "Contribution disability insurance policies", "Contribution fire policies", "Contribution surfboard policies", "Contribution boat policies", "Contribution bicycle policies", "Contribution property insurance policies", "Contribution social security insurance policies", "Number of private third party insurance", "Number of third party insurance (firms)", "Number of third party insurane (agriculture)", "Number of car policies", "Number of delivery van policies", "Number of motorcycle/scooter policies", "Number of lorry policies", "Number of trailer policies", "Number of tractor policies", "Number of agricultural machines policies", "Number of moped policies", "Number of life insurances", "Number of private accident insurance policies", "Number of family accidents insurance policies", "Number of disability insurance policies", "Number of fire policies", "Number of surfboard policies", "Number of boat policies", "Number of bicycle policies", "Number of property insurance policies", "Number of social security insurance policies", "Number of mobile home policy"))
+pander(data_dictionary)
+```
+
+\newpage
+
+## R statistical programming code.
+
+<code>
+```{r, null_prefix = TRUE, comment=NA, echo=FALSE}
+conn <- file("CoIL.r", open="r")
+lines <- readLines(conn)
+for (i in 1:length(lines)){
+  cat(lines[i], "\n")
+}
+close(conn)
+```
+</code>
+
