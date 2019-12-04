@@ -22,7 +22,8 @@ options(scipen = 999)
 ```{r data, echo=FALSE}
 df <- read.csv("./data/wine-training-data.csv")
 hold_out_data <- read.csv("./data/wine-evaluation-data.csv")
-predictors <- names(df)[3:length(names(df))]
+df <- df[,names(df)[2:length(names(df))]] # Drop the INDEX
+predictors <- names(df)[2:length(names(df))]
 ```
 
 ## Introduction 
@@ -39,20 +40,11 @@ summary(df) %>%
   kable_styling()
 ```
 
-Two things jump out about this dataset.  The first thing is that there are variables with negative values.  These negative values don't make sense in the context of chemical properties of wine.  After all, how can you have negative chlorides?  Second, there are quite a few records with missing values.  We will need to either impute values or drop the records with incomplete data.  These two issues will need to be corrected in the data.
+Two things jump out about this dataset.  The first thing is that there are variables with negative values.  These negative values don't make sense in the context of chemical properties of wine.  After all, how can you have negative chlorides?  
 
-### Training Test Split
+Second, there are quite a few records with missing values.  We will need to either impute values or drop the records with incomplete data.  These two issues will need to be corrected in the data.
 
-Next we will look at splitting the data into a training and testing set at a standard 70-30 split between train and test:
-
-```{r}
-set.seed(42)
-train_index <- createDataPartition(df$TARGET, p = .7, list = FALSE, times = 1)
-train <- df[train_index,]
-test <- df[-train_index,]
-```
-
-### Correct Invalid Values
+### Correcting Invalid Values
 
 We will begin by correcting the invalid values.  We will assume the negative values were a data entry issue and a negative value was entered when a positive value was desired.  If these negative values were changed into positive numbers, they would be within the range of plausible values based on the other data.
 
@@ -69,47 +61,54 @@ fix_negative_values <- function(df){
            Sulphates = abs(Sulphates),
            Alcohol = abs(Alcohol))
 }
-
-train <- fix_negative_values(train)
-test <- fix_negative_values(test)
+df <- fix_negative_values(df)
 hold_out_data <- fix_negative_values(hold_out_data)
-```
-
-Here is the summary of the corrected training data:
-
-```{r}
-summary(train) %>%
-  kable() %>%
-  kable_styling()
 ```
 
 ### Missing Values
 
-```{r}
-temp <- train
-```
-
-The `Alcohol`,  `ResidualSugar`, `Chlorides`, `FreeSulfurDioxide`, `TotalSulfurDioxide`, `pH`, and `Sulphates` have missing values.  We will impute using the median value.
-
-There are `r df %>% filter(is.na(STARS)) %>% nrow()` observations without a `STARS`value populated. Looking at what is populated, the variable was imported as a numeric value, though it is used as a discrete variable. Since it isn't too much of a stretch to view rating as a numeric here (e.g. a 2 star wine is half as good as a 4 star wine), we'll keep the variable type as-is.
-
-For the NA values, it makes sense that unrated wines would be somewhere in the middle of the pack or, possibly below it (after all, if it was such a good wine, why hasn't it come to the attention of experts to be rated?). The summary above shows a mean and median value at or close to 2, so we'll set our NAs to 2.
-
-```{r, eval=FALSE, echo=FALSE}
-set.seed(42)
-knn <- train %>% knnImputation()
-```
+The instructions indicate that sometimes, the fact that a variable is missing is actually predictive of the target.  Let's see what we can learn about `TARGET` from the missing values.
 
 ```{r}
-impute_vars <- c("Alcohol",  "ResidualSugar", "Chlorides", "FreeSulfurDioxide", "TotalSulfurDioxide", "pH", "Sulphates")
-fix_missing_values2 <- function(d){
-  for(var in impute_vars){
-    impute_me <- is.na(d[, var])
-    d[impute_me, var] <- knn[impute_me, var] 
-  }
-  d
-}
+temp <- df %>%
+  select(TARGET, STARS, Alcohol, ResidualSugar, Chlorides, FreeSulfurDioxide, TotalSulfurDioxide, pH, Sulphates) %>%
+  gather("variable", "value", -TARGET) %>%
+  mutate(na = ifelse(is.na(value), "Yes", "No")) %>%
+  group_by(TARGET, na, variable) %>%
+  tally() %>%
+  ungroup()
 
+ temp <- temp %>%
+    group_by(variable, na) %>%
+    summarise(total = sum(n)) %>%
+    merge(temp) %>%
+    mutate(share = n / total)
+ 
+ ggplot(temp, aes(TARGET, share, fill = na)) +
+   geom_bar(stat = "identity", position = "dodge") +
+   scale_fill_brewer(palette = "Set1") +
+   facet_wrap(~variable, ncol = 4) + 
+   ylab("Percent of Group")
+```
+ 
+We learn that the observations that are missing `STARS` are much more likely to have a zero `TARGET`.  So let's look at how many stars wine with a zero `TARGET` have:
+
+```{r}
+df %>%
+  filter(TARGET == 0) %>%
+  select(STARS) %>%
+  na.omit() %>%
+  group_by(STARS) %>%
+  tally() %>%
+  kable() %>%
+  kable_styling()
+```
+
+Based on this it looks like we should assign 1 for all the missing `STARS`.
+
+There is little to no information encoded in the NAs for `Alcohol`,  `ResidualSugar`, `Chlorides`, `FreeSulfurDioxide`, `TotalSulfurDioxide`, `pH`, and `Sulphates`.  We will impute using the median value.
+
+```{r}
 fix_missing_values <- function(df){
   df %>%
     mutate(
@@ -121,23 +120,34 @@ fix_missing_values <- function(df){
       Sulphates = ifelse(is.na(Sulphates), median(Sulphates, na.rm = T), Sulphates),
       Alcohol = ifelse(is.na(Alcohol), median(Alcohol, na.rm = T), Alcohol),
       STARS_imputed = ifelse(is.na(STARS), 1, 0),
-      STARS = ifelse(is.na(STARS), 2, STARS)
+      STARS = ifelse(is.na(STARS), 1, STARS)
     )
 }
-train <- fix_missing_values(train)
-test <- fix_missing_values(test)
+df <- fix_missing_values(df)
 hold_out_data <- fix_missing_values(hold_out_data)
 ```
 
-## Data Exploration
+### Training Test Split
+
+Next we will look at splitting the data into a training and testing set at a standard 70-30 split between train and test:
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
 
 ### Univariate Analysis
 
 #### Response Variable
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(data = train, aes(x = factor(TARGET), fill = factor(TARGET))) +
-  geom_bar() +
+train %>%
+  group_by(TARGET) %>%
+  tally() %>%
+  ggplot(., aes(x = factor(TARGET), y = n, fill = factor(TARGET))) +
+  geom_bar(stat = "identity", position = "dodge") +
   scale_fill_brewer(palette = "Set1") + 
   theme(legend.position = "none") +
   labs(x="Number of Wine Cases Purchased (TARGET)",y = "Count")
@@ -152,13 +162,13 @@ train %>%
   kable_styling()
 ```
 
-They are not the same.  The implications of this requirement not being met is the the MLE $\beta$s are correct but the standard errors will be wrong.
+They are not the same.  The implications of this requirement not being met is the the $\beta$s are correct but the standard errors will be wrong.
 
 #### Predictors
 
 ```{r}
 dens <- lapply(predictors, FUN=function(var) {
-  ggplot(train, aes_string(x = var)) + 
+  ggplot(df, aes_string(x = var)) + 
     geom_density(fill = "gray") +
     geom_vline(aes(xintercept = mean(train[, var])), color = "blue", size=1) +
     geom_vline(aes(xintercept = median(train[, var])), color = "red", size=1) +
@@ -168,7 +178,26 @@ dens <- lapply(predictors, FUN=function(var) {
 do.call(grid.arrange, args = c(dens, list(ncol = 3)))
 ```
 
+Some of the predictors (the chemical composition variables) are right skewed.
+
+
+### Bivariate Analysis
+
+Now let's examine the correlations between the variables:
 
 ```{r}
 corrplot.mixed(cor(train))
+```
+
+Hmm.  This suggests that the chemical makeup of the wine has little bearing on the number of cases sold.  The label appeal, acidity index value and star rating have the strongest correlation.  This also suggests that it may be worth the effort to do a better job filling in the missing values in the `STARS` variable.
+
+## Model Building & Evaluation
+
+We will begin by first constructing a count regression model based on the chemical properties of the wine.  So we will be excluding the label, star rating and the acid index as it is a weighted average of the acidity variables.  Based on our bivariate analysis we would not expect this model to preform well.  Since the mean is not equal to the variance we will be using the quasi-Poisson model.
+
+```{r}
+train1 <- train %>%
+  select(-LabelAppeal, -AcidIndex, -STARS, -STARS_imputed)
+model1 <- glm(TARGET ~ ., family = quasipoisson, train1)
+summary(model1)
 ```
