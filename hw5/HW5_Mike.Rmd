@@ -1,0 +1,174 @@
+---
+title: "DATA 621 Homework #5"
+author: "Critical Thinking Group 3"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 4
+    code_folding: "hide"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(kableExtra)
+library(caret)
+library(RColorBrewer)
+library(corrplot)
+library(gridExtra)
+options(scipen = 999)
+```
+
+```{r data, echo=FALSE}
+df <- read.csv("./data/wine-training-data.csv")
+hold_out_data <- read.csv("./data/wine-evaluation-data.csv")
+predictors <- names(df)[3:length(names(df))]
+```
+
+## Introduction 
+
+We have been given a dataset with information on `r nrow(df)` commercially available wines.  The variables in the dataset are mostly related to the chemical properties of the wine being sold.  A large wine manufacturer is studying the data in order to predict the number of wine cases ordered based upon the wine characteristics. If the wine manufacturer can predict the number of cases, then that manufacturer will be able to adjust their wine offering to maximize sales.  The objective is explore, analyze and build a count regression model to predict the number of cases of wine that will be sold given certain properties of the wine. 
+
+## Data Exploration & Preparation
+
+As previously stated we have `r nrow(df)` observations for developing the model.  The evaluation dataset (which we will set aside for now) consists of `r nrow(hold_out_data)` observations.  We will begin by taking a look at the modeling data:
+
+```{r}
+summary(df) %>%
+  kable() %>%
+  kable_styling()
+```
+
+Two things jump out about this dataset.  The first thing is that there are variables with negative values.  These negative values don't make sense in the context of chemical properties of wine.  After all, how can you have negative chlorides?  Second, there are quite a few records with missing values.  We will need to either impute values or drop the records with incomplete data.  These two issues will need to be corrected in the data.
+
+### Training Test Split
+
+Next we will look at splitting the data into a training and testing set at a standard 70-30 split between train and test:
+
+```{r}
+set.seed(42)
+train_index <- createDataPartition(df$TARGET, p = .7, list = FALSE, times = 1)
+train <- df[train_index,]
+test <- df[-train_index,]
+```
+
+### Correct Invalid Values
+
+We will begin by correcting the invalid values.  We will assume the negative values were a data entry issue and a negative value was entered when a positive value was desired.  If these negative values were changed into positive numbers, they would be within the range of plausible values based on the other data.
+
+```{r}
+fix_negative_values <- function(df){
+  df %>%
+    mutate(FixedAcidity = abs(FixedAcidity),
+           VolatileAcidity = abs(VolatileAcidity),
+           CitricAcid = abs(CitricAcid),
+           ResidualSugar = abs(ResidualSugar),
+           Chlorides = abs(Chlorides),
+           FreeSulfurDioxide = abs(FreeSulfurDioxide),
+           TotalSulfurDioxide = abs(TotalSulfurDioxide),
+           Sulphates = abs(Sulphates),
+           Alcohol = abs(Alcohol))
+}
+
+train <- fix_negative_values(train)
+test <- fix_negative_values(test)
+hold_out_data <- fix_negative_values(hold_out_data)
+```
+
+Here is the summary of the corrected training data:
+
+```{r}
+summary(train) %>%
+  kable() %>%
+  kable_styling()
+```
+
+### Missing Values
+
+```{r}
+temp <- train
+```
+
+The `Alcohol`,  `ResidualSugar`, `Chlorides`, `FreeSulfurDioxide`, `TotalSulfurDioxide`, `pH`, and `Sulphates` have missing values.  We will impute using the median value.
+
+There are `r df %>% filter(is.na(STARS)) %>% nrow()` observations without a `STARS`value populated. Looking at what is populated, the variable was imported as a numeric value, though it is used as a discrete variable. Since it isn't too much of a stretch to view rating as a numeric here (e.g. a 2 star wine is half as good as a 4 star wine), we'll keep the variable type as-is.
+
+For the NA values, it makes sense that unrated wines would be somewhere in the middle of the pack or, possibly below it (after all, if it was such a good wine, why hasn't it come to the attention of experts to be rated?). The summary above shows a mean and median value at or close to 2, so we'll set our NAs to 2.
+
+```{r, eval=FALSE, echo=FALSE}
+set.seed(42)
+knn <- train %>% knnImputation()
+```
+
+```{r}
+impute_vars <- c("Alcohol",  "ResidualSugar", "Chlorides", "FreeSulfurDioxide", "TotalSulfurDioxide", "pH", "Sulphates")
+fix_missing_values2 <- function(d){
+  for(var in impute_vars){
+    impute_me <- is.na(d[, var])
+    d[impute_me, var] <- knn[impute_me, var] 
+  }
+  d
+}
+
+fix_missing_values <- function(df){
+  df %>%
+    mutate(
+      ResidualSugar = ifelse(is.na(ResidualSugar), median(ResidualSugar, na.rm = T), ResidualSugar),
+      Chlorides = ifelse(is.na(Chlorides), median(Chlorides, na.rm = T), Chlorides),
+      FreeSulfurDioxide = ifelse(is.na(FreeSulfurDioxide), median(FreeSulfurDioxide, na.rm = T), FreeSulfurDioxide),
+      TotalSulfurDioxide = ifelse(is.na(TotalSulfurDioxide), median(TotalSulfurDioxide, na.rm = T), TotalSulfurDioxide),
+      pH = ifelse(is.na(pH), median(pH, na.rm = T), pH),
+      Sulphates = ifelse(is.na(Sulphates), median(Sulphates, na.rm = T), Sulphates),
+      Alcohol = ifelse(is.na(Alcohol), median(Alcohol, na.rm = T), Alcohol),
+      STARS_imputed = ifelse(is.na(STARS), 1, 0),
+      STARS = ifelse(is.na(STARS), 2, STARS)
+    )
+}
+train <- fix_missing_values(train)
+test <- fix_missing_values(test)
+hold_out_data <- fix_missing_values(hold_out_data)
+```
+
+## Data Exploration
+
+### Univariate Analysis
+
+#### Response Variable
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = train, aes(x = factor(TARGET), fill = factor(TARGET))) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Set1") + 
+  theme(legend.position = "none") +
+  labs(x="Number of Wine Cases Purchased (TARGET)",y = "Count")
+```
+
+In order to model this as a Poisson process the mean should be equal to the variance
+
+```{r}
+train %>%
+  summarise(mean = mean(TARGET), variance = var(TARGET)) %>%
+  kable() %>%
+  kable_styling()
+```
+
+They are not the same.  The implications of this requirement not being met is the the MLE $\beta$s are correct but the standard errors will be wrong.
+
+#### Predictors
+
+```{r}
+dens <- lapply(predictors, FUN=function(var) {
+  ggplot(train, aes_string(x = var)) + 
+    geom_density(fill = "gray") +
+    geom_vline(aes(xintercept = mean(train[, var])), color = "blue", size=1) +
+    geom_vline(aes(xintercept = median(train[, var])), color = "red", size=1) +
+    geom_vline(aes(xintercept = quantile(train[, var], 0.25)), linetype = "dashed", size = 0.5) + 
+    geom_vline(aes(xintercept = quantile(train[, var], 0.75)), linetype = "dashed", size = 0.5)
+  })
+do.call(grid.arrange, args = c(dens, list(ncol = 3)))
+```
+
+
+```{r}
+corrplot.mixed(cor(train))
+```
