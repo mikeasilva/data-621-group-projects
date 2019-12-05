@@ -193,15 +193,15 @@ Hmm.  This suggests that the chemical makeup of the wine has little bearing on t
 
 ## Model Building & Evaluation
 
-### Setting Up Evaluation
+### Evaluation Approach
 
-In order to assess the models we will assume that a bottle of wine whosale costs $15.00 and there are 10 bottles in a case.  We will assume that the `TARGET` is the maximum amount that will sell in the market.  Any predictions below the `TARGET` represent potential revenue that is unrealized.  Any predictions over the `TARGET` will not sell and represent a loss of $150.  We will evaluate the model to see if it helps the manufacturers goal of maximizing revenue.
+In order to assess the models we will return the the original intent of the exercise: If the wine manufacturer can predict the number of cases, then that manufacturer will be able to adjust their wine offering to maximize sales.  We will evaluate the models based on the number of cases that are likely to be sold.  We will assume that when the model overestimates the cases sold, these cases will never be sold and represent a loss.  When the model underestimates there is also a loss but it is unseen.  It is potential sales that are not realized.  
+
+We will summarize the evaluation by first constructing a confusion matrix like summary looking at what our model predicts vs what actually occured.  We will also summarize the total number of cases that would be sold, the net cases sold (after adjusting for the glut due to overestimating), and a final adjusted net which factors in "losses" from under estimation.
 
 ```{r}
+
 evaluate_model <- function(model, test_df, yhat = FALSE){
-  price_per_bottle <- 15.00
-  bottles_per_case <- 10
-  case_price <- price_per_bottle * bottles_per_case
   temp <- data.frame(yhat=c(0:8), TARGET = c(0:8), n=c(0))
   
   if(yhat){
@@ -214,19 +214,26 @@ evaluate_model <- function(model, test_df, yhat = FALSE){
     group_by(yhat, TARGET) %>%
     tally() %>%
     mutate(accuracy = ifelse(yhat > TARGET, "Over", ifelse(yhat < TARGET, "Under", "Accurate"))) %>%
-    mutate(off_by = abs(yhat - TARGET)) %>%
-    mutate(revenue = ifelse(off_by == 0, 1, -1) * n * case_price)
-  
-  rev_df <- test_df %>%
-    group_by(accuracy) %>%
-    summarise(revenue = sum(revenue)) %>%
-    spread(accuracy, revenue)
-  
-  total_rev <- sum(test_df$revenue)
+    mutate(cases_sold = ifelse(yhat > TARGET, TARGET, yhat) * n,
+           glut = ifelse(yhat > TARGET, yhat - TARGET, 0) * n,
+           missed_opportunity = ifelse(yhat < TARGET, TARGET - yhat, 0) * n) %>%
+    mutate(net_cases_sold = cases_sold - glut,
+           adj_net_cases_sold = cases_sold - glut - missed_opportunity)
   
   results <- test_df %>%
     group_by(accuracy) %>%
-    summarise(n = sum(n))
+    summarise(n = sum(n)) %>%
+    spread(accuracy, n)
+  
+  accurate <- results$Accurate
+  over <- results$Over
+  under <- results$Under
+  
+  cases_sold <- sum(test_df$cases_sold)
+  net_cases_sold <- sum(test_df$net_cases_sold)
+  adj_net_cases_sold <- sum(test_df$adj_net_cases_sold)
+  missed_opportunity <- sum(test_df$missed_opportunity)
+  glut <- sum(test_df$glut)
   
   confusion_matrix <- test_df %>%
     bind_rows(temp) %>%
@@ -234,7 +241,7 @@ evaluate_model <- function(model, test_df, yhat = FALSE){
     summarise(n = sum(n)) %>%
     spread(TARGET, n, fill = 0)
   
-  return(list("total_rev" = total_rev, "rev_df" = rev_df, "confusion_matrix" = confusion_matrix, "results" = results))
+  return(list("confusion_matrix" = confusion_matrix, "results" = results, "df" = test_df, "accurate" = accurate, "over" = over, "under" = under, "cases_sold" = cases_sold, "net_cases_sold" = net_cases_sold, "adj_net_cases_sold" = adj_net_cases_sold, "glut" = glut, "missed_opportunity" = missed_opportunity))
 }
 ```
 
@@ -258,15 +265,7 @@ model1_results$confusion_matrix %>%
   kable_styling()
 ```
 
-The model is only accurate `r temp <- model1_results$results %>% filter(accuracy == "Accurate"); temp$n` times.  It overestimates `r temp <- model1_results$results %>% filter(accuracy == "Over"); temp$n` times and underestimates `r temp <- model1_results$results %>% filter(accuracy == "Under"); temp$n` times.  The following shows the revenue gained or lost due to the model's predictions:
-
-```{r}
-model1_results$rev_df %>%
-  kable() %>%
-  kable_styling()
-```
-
-This model would result in $`r model1_results$total_rev` in revenue.  The company would loose a lot of money if the model was implemented.  
+The model is only accurate `r model1_results$accurate` times.  It overestimates `r model1_results$over` times and underestimates `r model1_results$under` times.  If decisions were based off of this model, one would expect to sell `r model1_results$cases_sold`.  If we subtract out the extra cases due to overestimation we would have `r model1_results$net_cases_sold` net cases sold. If we adjust this for the cases that could have been sold if the model didn’t underestimate we would have `r model1_results$adj_net_cases_sold` cases sold.
 
 ### Second Chemical Property Model
 
@@ -278,7 +277,15 @@ summary(model2)
 model2_results <- evaluate_model(model2, test)
 ```
 
-This model would generate $`r model2_results$total_rev` in revenue.  This is a slight improvement but is still a horible model.  Building a model based off of the chemical properties does not seem like a good solution.  Let's turn our attention to the other variables with stronger correlations.
+We would expect to have `r model2_results$cases_sold` cases sold using this model (with a net of `r model2_results$net_cases_sold` and adjusted net of `r model2_results$adj_net_cases_sold`). Looking at the confusion matrix we see this model is accurate only `r model2_results$accurate` out of `r nrow(test)` times.
+
+```{r}
+model2_results$confusion_matrix %>% 
+  kable() %>% 
+  kable_styling()
+```
+
+The previous model is slightly better but is still a horible model.  Building a model based off of the chemical properties does not seem like a good solution.  Let's turn our attention to the other variables with stronger correlations.
 
 ### Preceived Quality Model
 
@@ -298,18 +305,6 @@ model3_results$confusion_matrix %>%
   kable_styling()
 ```
 
-
-The model is only accurate `r temp <- model3_results$results %>% filter(accuracy == "Accurate"); temp$n` times.  It overestimates `r temp <- model3_results$results %>% filter(accuracy == "Over"); temp$n` times and underestimates `r temp <- model3_results$results %>% filter(accuracy == "Under"); temp$n` times.  This is an improvement from just the chemical property models, however there is still a lot of error.  The following shows the revenue gained or lost due to the model's predictions:
-
-```{r}
-model3_results$rev_df %>%
-  kable() %>%
-  kable_styling()
-```
-
-This model would result in $`r model3_results$total_rev` in revenue.
-
-
 ### Perceived Quality Plus Model
 
 We will begin with the preceeding model but add in the Acid Index and the flag if the STARS was imputed.
@@ -328,15 +323,7 @@ model4_results$confusion_matrix %>%
   kable_styling()
 ```
 
-The model is accurate `r temp <- model4_results$results %>% filter(accuracy == "Accurate"); temp$n` times.  It overestimates `r temp <- model4_results$results %>% filter(accuracy == "Over"); temp$n` times and underestimates `r temp <- model4_results$results %>% filter(accuracy == "Under"); temp$n` times.  The following shows the revenue gained or lost due to the model's predictions:
-
-```{r}
-model4_results$rev_df %>%
-  kable() %>%
-  kable_styling()
-```
-
-This model would result in $`r model4_results$total_rev` in revenue.  It is the best model so far but it still would loose a lot of money because it overestimates the number of cases to be sold.  
+We would expect to have `r model3_results$cases_sold` net cases sold using this model (with a net of `r model3_results$net_cases_sold` and adjusted net of `r model3_results$adj_net_cases_sold`). Looking at the confusion matrix we see this model is accurate only `r model3_results$accurate` out of `r nrow(test)` times.
 
 There are no zero predictions in this model which is not accurate.  We will try to address this in our last model
 
@@ -358,9 +345,69 @@ model5_results$confusion_matrix %>%
   kable_styling()
 ```
 
-```{r}
-model5_results$rev_df %>%
-  kable() %>%
-  kable_styling()
-```
+We see that applying the adjustment based on if the stars are imputed increased the correct number of cases where it should be predicted as a zero.  It also introduced some underestimation.  
 
+We would expect to have `r model4_results$cases_sold` net cases sold using this model (with a net of `r model4_results$net_cases_sold` and adjusted net of `r model4_results$adj_net_cases_sold`). Looking at the confusion matrix we see this model is accurate only `r model4_results$accurate` out of `r nrow(test)` times.
+
+## Model Selection
+
+The following is a summary of the five models
+
+<table>
+<thead>
+  <tr>
+    <th>Model</th>
+    <th>Number of Cases Sold</th>
+    <th>Number of Cases Overestimated to Sell</th>
+    <th>Missed Opportunities</th>
+    <th>Times Accurate</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>Chemical Property Model 1</td>
+    <td>`r model1_results$cases_sold`</td>
+    <td>`r model1_results$glut`</td>
+    <td>`r model1_results$missed_opportunity`</td>
+    <td>`r model1_results$accurate`</td>
+  </tr>
+  <tr>
+    <td>Chemical Property Model 2</td>
+    <td>`r model2_results$cases_sold`</td>
+    <td>`r model2_results$glut`</td>
+    <td>`r model2_results$missed_opportunity`</td>
+    <td>`r model2_results$accurate`</td>
+  </tr>
+  <tr>
+    <td>Perceived Quality Model</td>
+    <td>`r model3_results$cases_sold`</td>
+    <td>`r model3_results$glut`</td>
+    <td>`r model3_results$missed_opportunity`</td>
+    <td>`r model3_results$accurate`</td>
+  </tr>
+  <tr>
+    <td>Perceived Quality Plus Model</td>
+    <td>`r model4_results$cases_sold`</td>
+    <td>`r model4_results$glut`</td>
+    <td>`r model4_results$missed_opportunity`</td>
+    <td>`r model4_results$accurate`</td>
+  </tr>
+  <tr>
+    <td>Adjusted Perceived Quality Plus Model</td>
+    <td>`r model5_results$cases_sold`</td>
+    <td>`r model5_results$glut`</td>
+    <td>`r model5_results$missed_opportunity`</td>
+    <td>`r model5_results$accurate`</td>
+  </tr>
+</tbody>
+</table>
+
+The `Perceived Quality Plus Model` has the most cases sold out of the models.  However the `Adjusted Perceived Quality Plus Model` has the highest accuracy.  One of the reasons why the `Perceived Quality Plus Model` predicted more cases sold is because we forced more zero predictions in the `Adjusted Perceived Quality Plus Model`.  
+
+If we subtract out the waste from overestimation the `Adjusted Perceived Quality Plus Model` is the best model.  This has real business consequences as having extra cases of wine on hand that don't sell becomes a real cost to a business.  For these two reasons it will be the model of choice in producing estimates for the hold out datase.
+
+```{r}
+hold_out_data$TARGET <- round(predict.glm(model4, newdata=hold_out_data, type="response"), 0)
+hold_out_data <- hold_out_data %>%
+  mutate(TARGET = ifelse(STARS_imputed == 1, 0, TARGET))
+```
