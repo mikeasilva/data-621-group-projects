@@ -49,6 +49,7 @@ library(pander)
 library(gridExtra)
 library(corrplot)
 library(ggmosaic)
+library(wesanderson)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -269,12 +270,14 @@ for (var in categorical_vars){
     
   print(p)
 }
+df <- df %>% select(-var)
 ```
 
 ### Numeric
+
 ```{r, echo=FALSE}
 numeric_vars <- df %>%
-  select(-CARAVAN, -MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART, -var) %>%
+  select(-CARAVAN, -MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART) %>%
   names()
 
 for (var in numeric_vars){
@@ -287,6 +290,43 @@ for (var in numeric_vars){
   print(p)
 }
 
+df <- df %>% select(-var)
+```
+
+
+Here is a correlation heatmap.  Although you can't see the variable names, you get a general sense of how they are correlated:
+
+```{r, echo=FALSE}
+pal <- wes_palette("Zissou1", 100, type = "continuous")
+
+correlation_data <- df %>%
+  select(-MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART) %>%
+  mutate(CARAVAN = as.numeric(as.character(CARAVAN))) 
+
+correlation_matrix <- round(cor(correlation_data),2) %>%
+  as.data.frame() %>%
+  rownames_to_column("Var1") %>%
+  gather(Var2, Correlation, -Var1) %>%
+  arrange(Var1, Var2)
+
+correlation_matrix$Var2 <- factor(correlation_matrix$Var2,levels=rev(unique(correlation_matrix$Var2)))
+
+ggplot(correlation_matrix, aes(x=Var1, y=Var2, fill=Correlation)) + 
+  geom_tile() +
+  scale_fill_gradientn(colours = pal) +
+   theme(axis.title.x=element_blank(),
+         axis.text.x=element_blank(),
+         axis.ticks.x=element_blank(),
+         axis.title.y=element_blank(),
+         axis.text.y=element_blank(),
+         axis.ticks.y=element_blank())
+```
+
+Most of the correlation heatmap is yellow which is has a correlation coeffient of zero.  Here's a density plot of the correlation coefficients:
+
+```{r, echo=FALSE}
+ggplot(correlation_matrix, aes(Correlation)) +
+  geom_density(fill="red", color="red")
 ```
 
 # Appendices
@@ -368,7 +408,10 @@ data_dictionary <- data.frame(
                   "Number of property insurance policies",
                   "Number of social security insurance policies",
                   "Number of mobile home policy"))
-pander(data_dictionary)
+
+data_dictionary %>%
+  arrange(Name) %>%
+  pander()
 ```
 
 \newpage
