@@ -46,7 +46,10 @@ library("papaja")
 library(kableExtra)
 library(tidyverse)
 library(pander)
-
+library(gridExtra)
+library(corrplot)
+library(ggmosaic)
+library(wesanderson)
 # Thank you Stack Overflow!
 # A Prefix nulling hook.
 
@@ -207,6 +210,7 @@ eval$CARAVAN <- temp$V1
 eval <- prepare_data(eval)
 df <- prepare_data(read.delim("data/ticdata2000.txt", header = FALSE))
 ```
+
 # Introduction
 <!-- Describe the background and motivation of your problem.-->
 
@@ -234,68 +238,96 @@ ggplot(data = prediction_scores, aes(x = score, y = n)) +
 
 In total 147 participants registered and 43 submitted solutions [@Putten]. The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].  In this paper we set out to complete the first part of the COIL Challenge. <!--**SUMARISE FINDINGS?**-->
 
+# Exploratory Data Analysis
 
-
-
-
-
-# Literature Review
-
-<!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
-
-Participants used a variety of approaches in formulating their submissions including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
-
-<!--Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**-->
-
+## Response Variable CARAVAN
 
 ```{r, echo=FALSE}
-doornik <- function(df) {
-  df <- df %>%
-    mutate(PBRAND_2_or_6 = ifelse(PBRAND == 2 | PBRAND == 6, 1, 0),
-           PBRAND_3_or_4 = ifelse(PBRAND == 3 | PBRAND == 4, 1, 0),
-           PPLEZIER_gt_0 = ifelse(PPLEZIER > 0, 1, 0),
-           PPERSAUT_6 = ifelse(PPERSAUT == 6, 1, 0))
-  z <- -4.1 - (0.13 * df$MOPLLAAG) - (0.3 * df$MINK123M) + (0.17 * df$MINKGEM) + (0.54 * (df$ALEVEN + df$AFIETS + df$ABYSTAND)) - df$PBRAND_2_or_6 + (0.8 * df$PBRAND_3_or_4) + (2.4 * df$PPLEZIER_gt_0) + (1.5 * df$PPERSAUT_6) + (0.28 * (df$PWAOREG - df$PLEVEN))
-  p_caravan <- exp(z) / (1 + exp(z))
-  #p_caravan
-  ifelse(p_caravan > 0.5, 1, 0)
+df %>%
+  ggplot(aes(CARAVAN, fill=CARAVAN)) + 
+  scale_fill_brewer(palette = "Set1") + 
+  geom_bar() + 
+  ylab("Count") + 
+  theme(legend.position = "none")
+```
+
+The dataset is unbalanced.  There are only `r df %>% filter(CARAVAN == 1) %>% nrow()` cases that have purchased the mobile home insurance policy and `r df %>% filter(CARAVAN == 0) %>% nrow()` that have not.
+
+## Explanatory Variables
+
+### Categorical
+
+```{r, echo=FALSE}
+categorical_vars <- c("MOSTYPE", "MGEMLEEF", "MOSHOOFD", "MGODRK", "PWAPART")
+
+for (var in categorical_vars){
+  df$var <- df[,var]
+  p <- ggplot(df) +
+    geom_mosaic(aes(x = product(CARAVAN, var), fill=CARAVAN), na.rm=TRUE) +
+    labs(x=var, y="CARAVAN") +
+    theme(legend.position = "none") + 
+    scale_fill_brewer(palette = "Set1")
+    
+  print(p)
+}
+df <- df %>% select(-var)
+```
+
+### Numeric
+
+```{r, echo=FALSE}
+numeric_vars <- df %>%
+  select(-CARAVAN, -MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART) %>%
+  names()
+
+for (var in numeric_vars){
+  df$var <- df[,var]
+  p <- ggplot(df, aes(x = var, fill = CARAVAN, alpha = 0.5, color = CARAVAN)) +
+    geom_density() +
+    labs(x = var) +
+    theme(legend.position = "none") + 
+    scale_fill_brewer(palette = "Set1")
+  print(p)
 }
 
-eval$doornik <- doornik(eval)
+df <- df %>% select(-var)
 ```
 
-# Methodology
 
-<!--Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection.
+Here is a correlation heatmap.  Although you can't see the variable names, you get a general sense of how they are correlated:
 
-We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
+```{r, echo=FALSE}
+pal <- wes_palette("Zissou1", 100, type = "continuous")
 
-# Experimentation and Results
+correlation_data <- df %>%
+  select(-MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART) %>%
+  mutate(CARAVAN = as.numeric(as.character(CARAVAN))) 
 
-<!--Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.).
+correlation_matrix <- round(cor(correlation_data),2) %>%
+  as.data.frame() %>%
+  rownames_to_column("Var1") %>%
+  gather(Var2, Correlation, -Var1) %>%
+  arrange(Var1, Var2)
 
-We used `r cite_r("Manuscript.bib")` for all our analyses.
--->
+correlation_matrix$Var2 <- factor(correlation_matrix$Var2,levels=rev(unique(correlation_matrix$Var2)))
 
-# Discussion and Conclusions
-
-<!--Conclude your findings, limitations, and suggest areas for future work.-->
-
-\newpage
-
-# References
-```{r create_references, echo=FALSE}
-r_refs(file = "Manuscript.bib")
+ggplot(correlation_matrix, aes(x=Var1, y=Var2, fill=Correlation)) + 
+  geom_tile() +
+  scale_fill_gradientn(colours = pal) +
+   theme(axis.title.x=element_blank(),
+         axis.text.x=element_blank(),
+         axis.ticks.x=element_blank(),
+         axis.title.y=element_blank(),
+         axis.text.y=element_blank(),
+         axis.ticks.y=element_blank())
 ```
 
-\begingroup
-\setlength{\parindent}{-0.5in}
-\setlength{\leftskip}{0.5in}
+Most of the correlation heatmap is yellow which is has a correlation coeffient of zero.  Here's a density plot of the correlation coefficients:
 
-<div id = "refs"></div>
-\endgroup
-
-\newpage
+```{r, echo=FALSE}
+ggplot(correlation_matrix, aes(Correlation)) +
+  geom_density(fill="red", color="red")
+```
 
 # Appendices
 
@@ -376,22 +408,12 @@ data_dictionary <- data.frame(
                   "Number of property insurance policies",
                   "Number of social security insurance policies",
                   "Number of mobile home policy"))
-pander(data_dictionary)
+
+data_dictionary %>%
+  arrange(Name) %>%
+  pander()
 ```
 
 \newpage
 
-## R statistical programming code.
-
-<code>
-```{r, null_prefix = TRUE, comment=NA, echo=FALSE}
-conn <- file("CoIL.r", open = "r")
-lines <- readLines(conn)
-n_lines <- length(lines)
-for (i in 1:n_lines) {
-  cat(lines[i], "\n")
-}
-close(conn)
-```
-</code>
-
+## References
