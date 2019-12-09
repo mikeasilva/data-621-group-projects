@@ -1,37 +1,35 @@
 ---
-title             : "A Logistic Regression Approach to CoIL Challenge 2000"
-shorttitle        : " "
-author            : "Corey Arnouts, Adam Douglas, Jason Givens-Doyle, Michael Silva"
-affiliation       : "MS in Data Science Students CUNY School of Professional Studies"
-abstract: |
-  A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics.
-  <!-- https://tinyurl.com/ybremelq 
-    One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
-  
-  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
-  
-  One or two sentences to put the results into a more **general context**.
-  
-  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
-  -->
-keywords          : "CoIL Challenge, Logistic Regression"
-wordcount         : "X"
-bibliography      : ["Manuscript.bib"]
-floatsintext      : no
-figurelist        : no
-tablelist         : no
-footnotelist      : no
-linenumbers       : no
-mask              : no
-draft             : no
-documentclass     : "apa6"
-classoption       : "man"
-output: 
+title: "A Logistic Regression Approach to CoIL Challenge 2000"
+author: "Corey Arnouts, Adam Douglas, Jason Givens-Doyle, Michael Silva"
+affiliation: MS in Data Science Students CUNY School of Professional Studies
+output:
   word_document:
     reference_docx: word-template.docx
-  papaja::apa6_pdf:
-    #citation_package: natbib #biblatex
+  pdf_document: default
+  papaja::apa6_pdf: null
   html_document: default
+classoption: man
+documentclass: apa6
+draft: no
+figurelist: no
+floatsintext: no
+footnotelist: no
+keywords: CoIL Challenge, Logistic Regression
+linenumbers: no
+mask: no
+bibliography: Manuscript.bib
+shorttitle: DRAFT SUBMISSION
+tablelist: no
+abstract: "A logistic regression based solution to the CoIL Challenge 2000 is described.
+  The challenge consists of correctly identifying potential customers for an insurance
+  \n  One sentence summarizing the main result (with the words \"**here we show**\"
+  or their equivalent).\n\nTwo or three sentences explaining what the **main result**
+  reveals in direct comparison to what was thought to be the case previously, or how
+  the  main result adds to previous knowledge.\n\nOne or two sentences to put the
+  results into a more **general context**.\n\nTwo or three sentences to provide a
+  **broader perspective**, readily comprehensible to a scientist in any discipline.\n-->\n"
+  product, and describing their characteristics.\n<!-- https://tinyurl.com/ybremelq
+wordcount: X
 ---
 
 ```{r setup, include = FALSE}
@@ -196,11 +194,11 @@ df <- df %>%
          MGODRK = as.factor(MGODRK),
          PWAPART = as.factor(PWAPART),
          CARAVAN = as.factor(CARAVAN)) %>%
-  mutate(MOSTYPE = recode(MOSTYPE, !!!MOSTYPE_labels),
-         MGEMLEEF = recode(MGEMLEEF, !!!MGEMLEEF_labels),
-         MOSHOOFD = recode(MOSHOOFD, !!!MOSHOOFD_labels),
-         MGODRK = recode(MGODRK, !!!MGODRK_labels),
-         PWAPART = recode(PWAPART, !!!PWAPART_labels))
+  mutate(MOSTYPE = recode_factor(MOSTYPE, !!!MOSTYPE_labels),
+         MGEMLEEF = recode_factor(MGEMLEEF, !!!MGEMLEEF_labels),
+         MOSHOOFD = recode_factor(MOSHOOFD, !!!MOSHOOFD_labels),
+         MGODRK = recode_factor(MGODRK, !!!MGODRK_labels),
+         PWAPART = recode_factor(PWAPART, !!!PWAPART_labels))
 }
 
 
@@ -233,7 +231,8 @@ ggplot(data = prediction_scores, aes(x = score, y = n)) +
   geom_bar(stat = "identity") +
   xlab("Number of Correct Predictions") +
   ylab("CoIL Challenge Submissions") +
-  xlim(37, 122)
+  xlim(37, 122) +
+  labs(title="Frequency Distribution of Prediction Scores")
 ```
 
 In total 147 participants registered and 43 submitted solutions [@Putten]. The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].  In this paper we set out to complete the first part of the COIL Challenge. <!--**SUMARISE FINDINGS?**-->
@@ -241,6 +240,8 @@ In total 147 participants registered and 43 submitted solutions [@Putten]. The m
 # Exploratory Data Analysis
 
 ## Response Variable CARAVAN
+
+Our response variable here is the `CARAVAN` variable. It represents whether the person in question purchased an caravan insurance plan.
 
 ```{r, echo=FALSE}
 df %>%
@@ -251,7 +252,7 @@ df %>%
   theme(legend.position = "none")
 ```
 
-The dataset is unbalanced.  There are only `r df %>% filter(CARAVAN == 1) %>% nrow()` cases that have purchased the mobile home insurance policy and `r df %>% filter(CARAVAN == 0) %>% nrow()` that have not.
+The dataset is unbalanced as there are only `r df %>% filter(CARAVAN == 1) %>% nrow()` cases that have purchased the mobile home insurance policy and `r df %>% filter(CARAVAN == 0) %>% nrow()` that have not.
 
 ## Explanatory Variables
 
@@ -262,16 +263,20 @@ categorical_vars <- c("MOSTYPE", "MGEMLEEF", "MOSHOOFD", "MGODRK", "PWAPART")
 
 for (var in categorical_vars){
   df$var <- df[,var]
+
   p <- ggplot(df) +
-    geom_mosaic(aes(x = product(CARAVAN, var), fill=CARAVAN), na.rm=TRUE) +
+    geom_mosaic(aes(x = product(CARAVAN,var), fill=CARAVAN),na.rm=TRUE) +
     labs(x=var, y="CARAVAN") +
     theme(legend.position = "none") + 
-    scale_fill_brewer(palette = "Set1")
+    scale_fill_brewer(palette = "Set1") +
+    theme(axis.text.x = element_text(angle=45,hjust=1))
     
   print(p)
 }
 df <- df %>% select(-var)
 ```
+
+Looking at our categorical variables, there is some variation in frequency of `CARAVAN` in some values of `MOSTYPE` and `MGEMLEEF`, but the rest have quite a bit less variation.
 
 ### Numeric
 
@@ -293,6 +298,9 @@ for (var in numeric_vars){
 df <- df %>% select(-var)
 ```
 
+For numeric variables, we don't see any which can clearly seperate the `CARAVAN` variable values. 
+
+### Correlation
 
 Here is a correlation heatmap.  Although you can't see the variable names, you get a general sense of how they are correlated:
 
@@ -322,11 +330,64 @@ ggplot(correlation_matrix, aes(x=Var1, y=Var2, fill=Correlation)) +
          axis.ticks.y=element_blank())
 ```
 
-Most of the correlation heatmap is yellow which is has a correlation coeffient of zero.  Here's a density plot of the correlation coefficients:
+Most of the correlation heatmap is yellow which is has a correlation coeffient of zero. There are a few variable combinations with correlation, however. Here's a density plot of the correlation coefficients:
 
 ```{r, echo=FALSE}
 ggplot(correlation_matrix, aes(Correlation)) +
   geom_density(fill="red", color="red")
+```
+
+Next we will look at variable correlation with the outcome variable:
+
+```{r, echo=FALSE}
+numeric_vars <- df %>%
+  select(-CARAVAN, -MOSTYPE, -MGEMLEEF, -MOSHOOFD, -MGODRK, -PWAPART) %>%
+  names()
+
+corrs <- data.frame(CARAVAN = 1)
+
+for (var in numeric_vars){
+   t <- df %>% select(CARAVAN,var) %>% mutate(CARAVAN = as.numeric(CARAVAN))
+   corrs[,var] <- cor(t,use="complete.obs")[1,2]
+}
+
+corrs <- corrs %>% gather(key="variable",value="correlation",-CARAVAN) %>%
+  select(-CARAVAN) %>% mutate(positive = ifelse(correlation > 0,TRUE,FALSE))
+
+corrs[1:20,] %>% ggplot(aes(x=variable,y=correlation,fill=positive)) +
+  geom_col() + scale_y_continuous(limits=c(-1,1)) +
+  scale_fill_manual(values=c("#d13a26","#369970")) +
+  theme(legend.position = "None", axis.text.x = element_text(angle=90)) +
+  labs(title="Variable Correlations with Dependent Variable",
+       subtitle="Part 1")
+
+corrs[21:40,] %>% ggplot(aes(x=variable,y=correlation,fill=positive)) +
+  geom_col() + scale_y_continuous(limits=c(-1,1)) +
+  scale_fill_manual(values=c("#d13a26","#369970")) +
+  theme(legend.position = "None", axis.text.x = element_text(angle=90)) +
+  labs(title="Variable Correlations with Dependent Variable",
+       subtitle="Part 2")
+
+corrs[41:60,] %>% ggplot(aes(x=variable,y=correlation,fill=positive)) +
+  geom_col() + scale_y_continuous(limits=c(-1,1)) +
+  scale_fill_manual(values=c("#d13a26","#369970")) +
+  theme(legend.position = "None", axis.text.x = element_text(angle=90)) +
+  labs(title="Variable Correlations with Dependent Variable",
+       subtitle="Part 3")
+
+corrs[61:80,] %>% ggplot(aes(x=variable,y=correlation,fill=positive)) +
+  geom_col() + scale_y_continuous(limits=c(-1,1)) +
+  scale_fill_manual(values=c("#d13a26","#369970")) +
+  theme(legend.position = "None", axis.text.x = element_text(angle=90)) +
+  labs(title="Variable Correlations with Dependent Variable",
+       subtitle="Part 4")
+
+```
+
+None of the numeric variables, alone, seem to be well-correlated with the dependent variable. In fact, the correlation is quite poor across the board:
+
+```{r, echo = FALSE}
+summary(corrs$correlation)
 ```
 
 # Appendices
