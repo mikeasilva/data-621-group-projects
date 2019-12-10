@@ -186,7 +186,7 @@ PWAPART_labels <- c("0" = "f 0",
                     "8" = "f 10.000 - 19.999",
                     "9" = "f 20.000 - ?")
   
-df <- df %>%
+df %>%
   mutate(MOSTYPE = as.factor(MOSTYPE),
          MGEMLEEF = as.factor(MGEMLEEF),
          MOSHOOFD = as.factor(MOSHOOFD),
@@ -235,10 +235,6 @@ ggplot(data = prediction_scores, aes(x = score, y = n)) +
 In total 147 participants registered and 43 submitted solutions [@Putten]. The maximum number of policyowners that could be found was 238.  The submissions identified 95 policy owners on average.  The winning model [@Elkan] identified 121 policy owners.  Random selection results in identifying 42 policy owners. The standard benchmark tests result in 94 (k-nearest neighbor), 102 (naïve bayes), 105 (neural networks) and 118 (linear) policy owners. [@Putten].  In this paper we set out to complete the first part of the COIL Challenge. <!--**SUMARISE FINDINGS?**-->
 
 
-
-
-
-
 # Literature Review
 
 <!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
@@ -247,22 +243,6 @@ Participants used a variety of approaches in formulating their submissions inclu
 
 <!--Our investigation is similar to @Doornik in that we used a LOGIT model. **Reproduce his model and describe the results**-->
 
-
-```{r, echo=FALSE}
-doornik <- function(df) {
-  df <- df %>%
-    mutate(PBRAND_2_or_6 = ifelse(PBRAND == 2 | PBRAND == 6, 1, 0),
-           PBRAND_3_or_4 = ifelse(PBRAND == 3 | PBRAND == 4, 1, 0),
-           PPLEZIER_gt_0 = ifelse(PPLEZIER > 0, 1, 0),
-           PPERSAUT_6 = ifelse(PPERSAUT == 6, 1, 0))
-  z <- -4.1 - (0.13 * df$MOPLLAAG) - (0.3 * df$MINK123M) + (0.17 * df$MINKGEM) + (0.54 * (df$ALEVEN + df$AFIETS + df$ABYSTAND)) - df$PBRAND_2_or_6 + (0.8 * df$PBRAND_3_or_4) + (2.4 * df$PPLEZIER_gt_0) + (1.5 * df$PPERSAUT_6) + (0.28 * (df$PWAOREG - df$PLEVEN))
-  p_caravan <- exp(z) / (1 + exp(z))
-  #p_caravan
-  ifelse(p_caravan > 0.5, 1, 0)
-}
-
-eval$doornik <- doornik(eval)
-```
 
 # Methodology
 
