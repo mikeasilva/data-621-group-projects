@@ -142,11 +142,14 @@ df <- prepare_data(read.delim("data/ticdata2000.txt", header = FALSE))
 
 # Abstract
 
+<!-- In the abstract, the authors should explain the major objective of the study in an objective section, explain how the study was done in a Methods section, describe the findings in a Results section, and report whether the major goal was met in a Conclusion. In general, the reader should ask, If I could not read the entire manuscript, would the abstract adequately summarize it? -->
 A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. 
 
 *Key words: CoIL Challenge, Logistic Regression*
 
 # Introduction
+
+<!-- Readers need to understand all the reasons for performing the study, the assumptions underlying the methodology, and the nuances of the performance of the study. The purposes of the Introduction are, first, to provide the rationale for the study and, second, to explain the study's goals. The Introduction should include a problem statement that conveys the important issues and provides the context for the study. -->
 
 Businesses use data science to extract insights from data.  One pratical application is identifying households to include in a marketing campaign.  In this paper we set out to identify potential customers for an insurance product using real world data from the Computational Intelligence and Learning (CoIL) Challenge. 
 
@@ -173,6 +176,20 @@ The maximum number of potential policy owners that could be found is 238.  Previ
 # Methodology
 
 <!-- Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection. -->
+
+## Experimentation and Results
+
+<!-- Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.). 
+
+Needs to systematically and clearly articulate the study findings. If the results are unclear, the reviewer must decide whether the analysis of the data was poorly executed or whether the Results section is poorly organized. -->
+
+## Discussion
+
+<!-- Should state whether their hypotheses were verified or proven untrue or, if no hypotheses were given, whether their research questions were answered. The authors should also comment on their results in light of previous studies and explain what differences (if any) exist between their findings and those reported by others and attempt to provide an explanation for the discrepancies.-->
+
+# Conclusions
+
+<!-- Conclude your findings, limitations, and suggest areas for future work. -->
 
 # Appendix
 
