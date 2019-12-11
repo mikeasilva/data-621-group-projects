@@ -122,8 +122,8 @@ prepare_data <- function(df){
   set_to_1 <- c(12, 8, 6, 7, 1, 2, 36, 3, 37, 10, 20, 38, 11)
   
   df %>%
-    mutate(CUSTOMER_TYPE = ifelse(MOSTYPE %in% set_to_1, 1, 0)) %>%
-    mutate(CUSTOMER_TYPE = as.factor(CUSTOMER_TYPE)) %>%
+    mutate(LIKELY_CUSTOMERS = ifelse(MOSTYPE %in% set_to_1, 1, 0)) %>%
+    mutate(LIKELY_CUSTOMERS = as.factor(LIKELY_CUSTOMERS)) %>%
     mutate(MOSTYPE = as.factor(MOSTYPE),
            MGEMLEEF = as.factor(MGEMLEEF),
            MOSHOOFD = as.factor(MOSHOOFD),
@@ -154,26 +154,28 @@ up_train <- upSample(x = select(train, -CARAVAN),
                      y = train$CARAVAN,
                      yname = "CARAVAN") 
 
-# ## Looking for important variables
+## Looking for important variables
 # set.seed(42)
 # library(randomForest)
 # rf_fit <- randomForest(CARAVAN ~ ., up_train)
 # varImpPlot(rf_fit)
-# 
-# ## Find important customer types
-# crosstab <- up_train %>%
-#   select(CARAVAN, MOSTYPE) %>%
-#   table() %>%
-#   data.frame()
-# 
-# crosstab %>%
-#   group_by(MOSTYPE) %>%
-#   summarise(total = sum(Freq)) %>%
-#   merge(crosstab) %>%
-#   mutate(share = Freq / total) %>%
-#   filter(CARAVAN == 1, share > 0.5) %>%
-#   arrange(desc(share)) %>%
-#   select(MOSTYPE, share)
+
+## Find likely customer types
+MOSTYPE_crosstab <- up_train %>%
+  select(CARAVAN, MOSTYPE) %>%
+  table() %>%
+  data.frame()
+
+MOSTYPE_crosstab <- MOSTYPE_crosstab %>%
+  group_by(MOSTYPE) %>%
+  summarise(total = sum(Freq)) %>%
+  merge(MOSTYPE_crosstab) %>%
+  mutate(share = Freq / total) %>%
+  filter(CARAVAN == 1, share > 0.5) %>%
+  arrange(desc(share)) %>%
+  select(MOSTYPE, share)
+
+MOSTYPE_crosstab
 
 ## Model Building
 
@@ -182,8 +184,8 @@ model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT,
               family = binomial(link = "logit"),
               up_train)
 
-### Model 2 - Special Customer Type Groups
-model2 <- glm(CARAVAN ~ CUSTOMER_TYPE + PPERSAUT + APERSAUT,
+### Model 2 - Likely Customers and Car Policies Contribution Level
+model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT,
               family = binomial(link = "logit"),
               up_train)
 
