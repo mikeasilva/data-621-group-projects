@@ -177,39 +177,27 @@ MOSTYPE_crosstab <- MOSTYPE_crosstab %>%
 
 MOSTYPE_crosstab
 
-## Model Building
-
-### Model 1 - Top 5 Important Variables from Random Forest
-model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT, 
-              family = binomial(link = "logit"),
-              up_train)
-
-### Model 2 - Likely Customers and Car Policies Contribution Level
-model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT,
-              family = binomial(link = "logit"),
-              up_train)
-
-## Model Evaluation
+## Model Building & Evaluation
 
 score_model <- function(model, data, threshold = 0.5, predictions = FALSE){
-  ## Provides model scoring data
-  #
-  # INPUTS
-  #
-  # model = logit model object
-  # data = data frame to make predictions for
-  # threshold (optional) = the cutpoint to assign a 1 or 0 response
-  # predictions (optional) = 1 or 0 you want to use for the predicitions
-  # 
-  # RETURNS (list)
-  #
-  # cm = Confusion Matrix output from caret
-  # correct = the number of correct CARAVAN = 1 predictions
-  # accuracy = the accuracy of the CARAVAN = 1 predictions
+## Provides model scoring data
+#
+# INPUTS
+#
+# model = logit model object
+# data = data frame to make predictions for
+# threshold (optional) = the cutpoint to assign a 1 or 0 response
+# predictions (optional) = 1 or 0 you want to use for the predicitions
+# 
+# RETURNS (list)
+#
+# cm = Confusion Matrix output from caret
+# correct = the number of correct CARAVAN = 1 predictions
+# accuracy = the accuracy of the CARAVAN = 1 predictions
   
   # Generate the predicted outcome
   if(!predictions){
-    glm_predictions <- predict.glm(model, data, "response")
+    glm_predictions <- suppressWarnings(predict.glm(model, data, "response"))
     predictions <- ifelse(glm_predictions >= threshold, 1, 0)
   }
   data$yhat <- predictions
@@ -230,12 +218,79 @@ score_model <- function(model, data, threshold = 0.5, predictions = FALSE){
   return(list("cm" = cm, "correct" = correct, "accuracy" = accuracy))
 }
 
-results1 <- score_model(model1, test)
-results2 <- score_model(model2, test)
+robust_results <- function(model_formula, n_tries = 250){
+## Trains and evaluates the model multiple times
+#
+# INPUTS
+#
+# model_formula = The formula for the logit model
+# n_tries (optional) =  The number of runs (250 default)
+# 
+# RETURNS (data.frame)
+#
+# seed = randome number seed
+# correct = the number of correct CARAVAN = 1 predictions
+# accuracy = the accuracy of the CARAVAN = 1 predictions
+  
+  # Convert the formula from a string
+  model_formula <- as.formula(model_formula)
+  # Begin the loop
+  for(seed in 1:n_tries){
+      set.seed(seed)
+      # Because some models fail we need to use a try except
+      success = tryCatch({
+        # Split the data
+        train_index <- createDataPartition(df$CARAVAN, p = .7, list = FALSE)
+        train <- df[train_index,]
+        test_df <- df[-train_index,]
+        # Correct the data imbalance through over sampling
+        training_df <- upSample(x = select(train, -CARAVAN), 
+                                y = train$CARAVAN, 
+                                yname = "CARAVAN")
+        # Build the model
+        model <- glm(model_formula, 
+                     family = binomial(link = "logit"), 
+                     training_df)
+        # See how it preforms
+        results <- score_model(model, test_df)
+        # Store the results
+        temp <- data.frame("seed" = seed,
+                           "correct" = results$correct,
+                           "accuracy" = results$accuracy)
+        if(exists("the_results")){
+          the_results <- bind_rows(the_results, temp)
+        } else {
+          the_results <- temp
+        }
+      }, error = function(e) {
+        # Something bad happened
+        return(FALSE)
+      })
+  }
+  # Return the data.frame of results
+  return(the_results)
+}
+
+### Model 1 - Top 5 Important Variables from Random Forest
+model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT, 
+              family = binomial(link = "logit"),
+              up_train)
+model1_results <- score_model(model1, test)
+model1_results$accuracy
+# TODO: Uncomment these lines
+#model1_robust_results <- robust_results("CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT")
+#summary(model1_robust_results$accuracy)
+
+### Model 2 - Likely Customers and Car Policies Contribution Level
+model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT,
+              family = binomial(link = "logit"),
+              up_train)
+model2_results <- score_model(model2, test)
+model2_results$accuracy
+model2_robust_results <- robust_results("CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT")
+summary(model2_robust_results$accuracy)
 
 ## Final Model Accuracy
-score_model(model1, eval)$correct
-score_model(model1, eval)$accuracy
-
-score_model(model2, eval)$correct
-score_model(model2, eval)$accuracy
+final_model <- score_model(model2, eval)
+final_model$correct
+final_model$accuracy

@@ -8,142 +8,15 @@ output:
 ---
 
 ```{r echo=FALSE, message=FALSE}
-library(tidyverse)
+source("CoIL.R")
 library(pander)
-
-prepare_data <- function(df){
-  names(df) <- c(
-    "MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK",
-    "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV", "MFALLEEN",
-    "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD", "MOPLLAAG", "MBERHOOG",
-    "MBERZELF", "MBERBOER", "MBERMIDD", "MBERARBG", "MBERARBO", "MSKA",
-    "MSKB1", "MSKB2", "MSKC", "MSKD", "MHHUUR", "MHKOOP", "MAUT1", "MAUT2",
-    "MAUT0", "MZFONDS", "MZPART", "MINKM30", "MINK3045", "MINK4575",
-    "MINK7512", "MINK123M", "MINKGEM", "MKOOPKLA", "PWAPART", "PWABEDR", 
-    "PWALAND", "PPERSAUT", "PBESAUT", "PMOTSCO", "PVRAAUT",  "PAANHANG",
-    "PTRACTOR", "PWERKT", "PBROM", "PLEVEN", "PPERSONG", "PGEZONG",
-    "PWAOREG", "PBRAND", "PZEILPL", "PPLEZIER", "PFIETS", "PINBOED",
-    "PBYSTAND", "AWAPART", "AWABEDR", "AWALAND", "APERSAUT", "ABESAUT",
-    "AMOTSCO", "AVRAAUT", "AAANHANG", "ATRACTOR", "AWERKT", "ABROM",
-    "ALEVEN", "APERSONG", "AGEZONG", "AWAOREG",  "ABRAND", "AZEILPL",
-    "APLEZIER", "AFIETS", "AINBOED", "ABYSTAND", "CARAVAN")
-  
-  MOSTYPE_labels <- c(
-    "1" = "1 High Income, expensive child",
-    "2" = "2 Very Important Provincials",
-    "3" = "3 High status seniors",
-    "4" = "4 Affluent senior apartments",
-    "5" = "5 Mixed seniors",
-    "6" = "6 Career and childcare",
-    "7" = "7 Dinki's (double income no kids)",
-    "8" = "8 Middle class families",
-    "9" = "9 Modern, complete families",
-    "10" = "10 Stable family",
-    "11" = "11 Family starters",
-    "12" = "12 Affluent young families",
-    "13" = "13 Young all american family",
-    "14" = "14 Junior cosmopolitan",
-    "15" = "15 Senior cosmopolitans",
-    "16" = "16 Students in apartments",
-    "17" = "17 Fresh masters in the city",
-    "18" = "18 Single youth",
-    "19" = "19 Suburban youth",
-    "20" = "20 Ethnically diverse",
-    "21" = "21 Young urban have-nots",
-    "22" = "22 Mixed apartment dwellers",
-    "23" = "23 Young and rising",
-    "24" = "24 Young, low educated",
-    "25" = "25 Young seniors in the city",
-    "26" = "26 Own home elderly",
-    "27" = "27 Seniors in apartments",
-    "28" = "28 Residential elderly",
-    "29" = "29 Porchless seniors: no front yard",
-    "30" = "30 Religious elderly singles",
-    "31" = "31 Low income catholics",
-    "32" = "32 Mixed seniors",
-    "33" = "33 Lower class large families",
-    "34" = "34 Large family, employed child",
-    "35" = "35 Village families",
-    "36" = "36 Couples with teens 'Married with children'",
-    "37" = "37 Mixed small town dwellers",
-    "38" = "38 Traditional families",
-    "39" = "39 Large religous families",
-    "40" = "40 Large family farms",
-    "41" = "41 Mixed rurals")
-  
-  MGEMLEEF_labels <- c(
-    "1" = "20-30 years",
-    "2" = "30-40 years",
-    "3" = "40-50 years",
-    "4" = "50-60 years",
-    "5" = "60-70 years",
-    "6" = "70-80 years")
-  
-  MOSHOOFD_labels <- c(
-    "1" = "Successful hedonists",
-    "2" = "Driven Growers",
-    "3" = "Average Family",
-    "4" = "Career Loners",
-    "5" = "Living well",
-    "6" = "Cruising Seniors",
-    "7" = "Retired and Religeous",
-    "8" = "Family with grown ups",
-    "9" = "Conservative families",
-    "10" = "Farmers")
-  
-  MGODRK_labels <- c(
-    "0" = "0%",
-    "1" = "1 - 10%",
-    "2" = "11 - 23%",
-    "3" = "24 - 36%",
-    "4" = "37 - 49%",
-    "5" = "50 - 62%",
-    "6" = "63 - 75%",
-    "7" = "76 - 88%",
-    "8" = "89 - 99%",
-    "9" = "100%")
-  
-  PWAPART_labels <- c(
-    "0" = "f 0",
-    "1" = "f 1 - 49",
-    "2" = "f 50 - 99",
-    "3" = "f 100 - 199",
-    "4" = "f 200 - 499",
-    "5" = "f 500 - 999",
-    "6" = "f 1000 - 4999",
-    "7" = "f 5000 - 9999",
-    "8" = "f 10,000 - 19,999",
-    "9" = "f 20,000 - ?")
-  
-  set_to_1 <- c(12, 8, 6, 7, 1, 2, 36, 3, 37, 10, 20, 38, 11)
-  
-  df %>%
-    mutate(CUSTOMER_TYPE = ifelse(MOSTYPE %in% set_to_1, 1, 0)) %>%
-    mutate(CUSTOMER_TYPE = as.factor(CUSTOMER_TYPE)) %>%
-    mutate(MOSTYPE = as.factor(MOSTYPE),
-           MGEMLEEF = as.factor(MGEMLEEF),
-           MOSHOOFD = as.factor(MOSHOOFD),
-           MGODRK = as.factor(MGODRK),
-           PWAPART = as.factor(PWAPART),
-           CARAVAN = as.factor(CARAVAN)) %>%
-    mutate(MOSTYPE = recode(MOSTYPE, !!!MOSTYPE_labels),
-           MGEMLEEF = recode(MGEMLEEF, !!!MGEMLEEF_labels),
-           MOSHOOFD = recode(MOSHOOFD, !!!MOSHOOFD_labels),
-           MGODRK = recode(MGODRK, !!!MGODRK_labels),
-           PWAPART = recode(PWAPART, !!!PWAPART_labels))
-}
-
-eval <- read.delim("data/ticeval2000.txt", header = FALSE)
-temp <- read.delim("data/tictgts2000.txt", header = FALSE)
-eval$CARAVAN <- temp$V1
-eval <- prepare_data(eval)
-df <- prepare_data(read.delim("data/ticdata2000.txt", header = FALSE))
+knitr::opts_chunk$set(comment = NA)
 ```
 
 # Abstract
 
 <!-- In the abstract, the authors should explain the major objective of the study in an objective section, explain how the study was done in a Methods section, describe the findings in a Results section, and report whether the major goal was met in a Conclusion. In general, the reader should ask, If I could not read the entire manuscript, would the abstract adequately summarize it? -->
-A logistic regression based solution to the CoIL Challenge 2000 is described. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. 
+A logistic regression based solution to the CoIL Challenge 2000 is described in this paper. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. Models were trained on over sampled data.  The model out preformed other's attemps.
 
 *Key words: CoIL Challenge, Logistic Regression*
 
@@ -157,18 +30,22 @@ Businesses use data science to extract insights from data.  One pratical applica
 
 <!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
 
-
 Fourty-three other research teams have attempted to identify potential caravan insurance customers [@Putten].  They used a variety of approaches including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
 
 ```{r, echo=FALSE}
-# Recreate the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
+# Similar the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
 prediction_scores <- data.frame(score = c(38, 46, 53, 58, 65, 72, 74, 80, 83, 86, 91, 94, 95, 96, 97, 99, 101, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 115, 121), n = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 2, 1, 1, 1, 3, 1, 2, 2, 4, 2, 2, 2, 1, 1))
 ggplot(data = prediction_scores, aes(x = score, y = n)) +
   geom_bar(stat = "identity", fill = "#377eb8") +
   xlab("Number of Correct Predictions") +
-  ylab("CoIL Challenge Submissions") +
-  xlim(37, 122) +
-  scale_fill_brewer(palette = "Set1")
+  ylab(element_blank()) + 
+  xlim(37, 240) +
+  annotate("text", x = 65, y = 4, label = "Previous Researchers") +
+  geom_vline(xintercept = 238, color = "#e41a1c", linetype="dashed") +
+  annotate("text", x = 220, y = 4, label = "Maximum") +
+  geom_vline(xintercept = final_model$correct, color = "#4daf4a") +
+  annotate("text", x = final_model$correct - 20, y = 4, label = "Our Model") +
+  ggtitle("Number of Customers Correctly Predicted")
 ```
 
 The maximum number of potential policy owners that could be found is 238.  Previous researchers identified 95 policy owners on average.  The best preforming model [@Elkan] during the initial challenge identified 121 policy owners.  A meta analysis found that simpler algorithms tended to outpreform more complicated ones [@Putten].
@@ -193,11 +70,22 @@ Needs to systematically and clearly articulate the study findings. If the result
 
 # Appendix
 
+## Correlation Coefficients for Variables of Interest
+```{r, echo=FALSE}
+vars <- c("CARAVAN", "PPERSAUT", "PBRAND", "APERSAUT", "LIKELY_CUSTOMERS")
+temp <- up_train %>%
+  mutate(CARAVAN = as.numeric(as.character(CARAVAN)),
+         LIKELY_CUSTOMERS = as.numeric(as.character(LIKELY_CUSTOMERS)))
+temp <- temp[vars]
+
+pander(cor(temp[vars], temp[vars]))
+```
+
 ## Data Dictionary
 
 ```{r, results='asis', echo=FALSE}
 data_dictionary <- data.frame(
-  Name = c("MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK",
+  Name = c("CARAVAN", "MOSTYPE", "MAANTHUI", "MGEMOMV", "MGEMLEEF", "MOSHOOFD", "MGODRK",
            "MGODPR", "MGODOV", "MGODGE", "MRELGE", "MRELSA", "MRELOV",
            "MFALLEEN", "MFGEKIND", "MFWEKIND", "MOPLHOOG", "MOPLMIDD",
            "MOPLLAAG", "MBERHOOG", "MBERZELF", "MBERBOER", "MBERMIDD",
@@ -211,8 +99,9 @@ data_dictionary <- data.frame(
            "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG",
            "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG",
            "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED",
-           "ABYSTAND", "CARAVAN"),
-  Description = c("Customer Subtype", "Number of houses", "Avg size household",
+           "ABYSTAND", "LIKELY_CUSTOMERS"),
+  Description = c("Number of mobile home policy",
+                  "Customer Subtype", "Number of houses", "Avg size household",
                   "Avg age", "Customer main type", "Roman catholic",
                   "Protestant", "Other religion", "No religion", "Married",
                   "Living together", "Other relation", "Singles",
@@ -265,15 +154,22 @@ data_dictionary <- data.frame(
                   "Number of boat policies", "Number of bicycle policies",
                   "Number of property insurance policies",
                   "Number of social security insurance policies",
-                  "Number of mobile home policy"))
-pander(data_dictionary)
+                  "MOSTYPE = 12, 8, 6, 7, 1, 2, 36, 3, 37, 10, 20, 38, or 11"))
+temp <- data_dictionary[data_dictionary$Name %in% vars,]
+row.names(temp) <- NULL
+pander(temp)
 ```
 
 \newpage
 
+## Confusion Matrix and Statistics for our Model
+
+```{r, echo=FALSE}
+final_model$cm
+```
+
 ## R statistical programming code.
 
-<code>
 ```{r, null_prefix = TRUE, comment=NA, echo=FALSE}
 conn <- file("CoIL.r", open = "r")
 lines <- readLines(conn)
@@ -283,6 +179,7 @@ for (i in 1:n_lines) {
 }
 close(conn)
 ```
-</code>
+
+\newpage
 
 ## References
