@@ -8,15 +8,18 @@ output:
 ---
 
 ```{r echo=FALSE, message=FALSE}
+temp <- read.delim("data/ticdata2000.txt", header = FALSE, nrows = 1)
+df_cols <- length(names(temp))
 source("CoIL.R")
 library(pander)
 knitr::opts_chunk$set(comment = NA)
+knitr::knit_hooks$set(inline = function(x) { if(!is.numeric(x)){ x }else{ prettyNum(round(x,2), big.mark=",") } })
 ```
 
 # Abstract
 
 <!-- In the abstract, the authors should explain the major objective of the study in an objective section, explain how the study was done in a Methods section, describe the findings in a Results section, and report whether the major goal was met in a Conclusion. In general, the reader should ask, If I could not read the entire manuscript, would the abstract adequately summarize it? -->
-A logistic regression based solution to the CoIL Challenge 2000 is described in this paper. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. Models were trained on over sampled data.  The model out preformed other's attemps.
+A logistic regression based solution to the CoIL Challenge 2000 is described in this paper. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. Models were trained on over sampled data.  The model out preformed other's attemps at solving this classification problem.
 
 *Key words: CoIL Challenge, Logistic Regression*
 
@@ -24,13 +27,13 @@ A logistic regression based solution to the CoIL Challenge 2000 is described in 
 
 <!-- Readers need to understand all the reasons for performing the study, the assumptions underlying the methodology, and the nuances of the performance of the study. The purposes of the Introduction are, first, to provide the rationale for the study and, second, to explain the study's goals. The Introduction should include a problem statement that conveys the important issues and provides the context for the study. -->
 
-Businesses use data science to extract insights from data.  One pratical application is identifying households to include in a marketing campaign.  In this paper we set out to identify potential customers for an insurance product using real world data from the Computational Intelligence and Learning (CoIL) Challenge. 
+Businesses use data science to extract insights from data.  One pratical application is identifying households to include in a marketing campaign.  In this paper we set out to identify potential customers for an insurance product using real world data from the Computational Intelligence and Learning (CoIL) Challenge. Specifically we are predicting if a customer is likely candidate for a caravan (mobile home/camper) insurance policy.  This is particularly challenging because the data is imballanced (only `r sum(as.numeric(as.character(df$CARAVAN)))` of the `r nrow(df)` records for model training/testing are policy holders).
 
 # Literature Review
 
 <!--Discuss how other researchers have addressed similar problems, what their achievements are, and what the advantage and drawbacks of each reviewed approach are. Explain how your investigation is similar or different to the state-of-the-art. Please cite the relevant papers where appropriate.-->
 
-Fourty-three other research teams have attempted to identify potential caravan insurance customers [@Putten].  They used a variety of approaches including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
+Fourty-three other research teams have attempted to identify potential insurance policy customers [@Putten].  They used a variety of approaches including: Boosted Decision Tree [@McKone], Classification and Regression Tree (CART) [@Simmonds], Classification Trees with Bagging [@White], C4.5 [@Rickets; @Seewald], Evolutionary Algorithm [@Koudijs], Fuzzy Classifier [@Abonyi; @Kaymak], Genetic Algorithms and Hill-climbers [@Carter], Inductive Learning by Logic Minimization (ILLM) [@Gamberger; @Smuc], Instance Based Reasoning (iBARET) [@Miksovsky], K-Means [@Vesanto], KXEN [@Bera], LOGIT [@Doornik], Mask Perceptron with Boosting [@Leckie], Midos Algorithm [@Krogel], N-Tuple Classifier [@Jorgensen], Naïve Bayes [@Elkan; @Kontkanen], Neural Networks[@Brierley; @Crocoll; @Kim; @Shtovba_Mashnitskiy], Phase Intervals and Genetic Algorithms [@Shtovba], Scoring System [@Lewandowski], Support Vector Machines[@Keerthi], and XCS [@Greenyer].
 
 ```{r, echo=FALSE}
 # Similar the chart found on page 2 of http://liacs.leidenuniv.nl/~puttenpwhvander/library/cc2000/PUTTEN~1.pdf
@@ -53,12 +56,17 @@ The maximum number of potential policy owners that could be found is 238.  Previ
 # Methodology
 
 <!-- Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection. -->
+The CoIL Challenge dataset is composed of `r df_cols` variables accross `r nrow(df)` observations.  An evaluation dataset is provided with `r nrow(eval)` observations.  
+
+**THERE ARE X that are categorical and X that are numeric.**  Most of the variables have little to no correlation with the variable of interest (CARAVAN).
 
 ## Experimentation and Results
 
 <!-- Describe the specifics of what you did (data exploration, data preparation, model building, model selection, model evaluation, etc.), and what you found out (statistical analyses, interpretation and discussion of the results, etc.). 
 
 Needs to systematically and clearly articulate the study findings. If the results are unclear, the reviewer must decide whether the analysis of the data was poorly executed or whether the Results section is poorly organized. -->
+
+We split the data into training/test sets using a 70/30 split.  We corrected the imballance by oversampling the minority class (caravan policy holders).  Given the large number of possible predictors we used a random forest to aid in variable selection.  A logistic regression model was trained on the oversampled training set using the top five variables selected by the random forest (MOSTYPE, PPERSAUT, MOSHOOFD, PBRAND, APERSAUT).  
 
 ## Discussion
 
