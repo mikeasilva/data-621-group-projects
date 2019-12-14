@@ -193,7 +193,7 @@ score_model <- function(model, data, threshold = 0.5, predictions = FALSE){
 #
 # cm = Confusion Matrix output from caret
 # correct = the number of correct CARAVAN = 1 predictions
-# accuracy = the accuracy of the CARAVAN = 1 predictions
+# specificity = the specificity of the CARAVAN = 1 predictions
   
   # Generate the predicted outcome
   if(!predictions){
@@ -211,11 +211,11 @@ score_model <- function(model, data, threshold = 0.5, predictions = FALSE){
            yhat == CARAVAN) %>%
     nrow(.)
   
-  # Get the accuracy of the model's CARAVAN = 1 Predictions
-  accuracy <- correct / nrow(data[data$CARAVAN == 1,])
+  # Get the specificity of the model's CARAVAN = 1 Predictions
+  specificity <- correct / nrow(data[data$CARAVAN == 1,])
   
   # Return the data as a list
-  return(list("cm" = cm, "correct" = correct, "accuracy" = accuracy))
+  return(list("cm" = cm, "correct" = correct, "specificity" = specificity))
 }
 
 robust_results <- function(model_formula, n_tries = 250){
@@ -230,7 +230,7 @@ robust_results <- function(model_formula, n_tries = 250){
 #
 # seed = randome number seed
 # correct = the number of correct CARAVAN = 1 predictions
-# accuracy = the accuracy of the CARAVAN = 1 predictions
+# specificity = the specificity of the CARAVAN = 1 predictions
   
   # Convert the formula from a string
   model_formula <- as.formula(model_formula)
@@ -256,7 +256,7 @@ robust_results <- function(model_formula, n_tries = 250){
         # Store the results
         temp <- data.frame("seed" = seed,
                            "correct" = results$correct,
-                           "accuracy" = results$accuracy)
+                           "specificity" = results$specificity)
         if(exists("the_results")){
           the_results <- bind_rows(the_results, temp)
         } else {
@@ -276,21 +276,21 @@ model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT,
               family = binomial(link = "logit"),
               up_train)
 model1_results <- score_model(model1, test)
-model1_results$accuracy
+model1_results$specificity
 # TODO: Uncomment these lines
 #model1_robust_results <- robust_results("CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT")
-#summary(model1_robust_results$accuracy)
+#summary(model1_robust_results$specificity)
 
 ### Model 2 - Likely Customers and Car Policies Contribution Level
 model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT,
               family = binomial(link = "logit"),
               up_train)
 model2_results <- score_model(model2, test)
-model2_results$accuracy
+model2_results$specificity
 model2_robust_results <- robust_results("CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT")
-summary(model2_robust_results$accuracy)
+summary(model2_robust_results$specificity)
 
 ## Final Model Accuracy
 final_model <- score_model(model2, eval)
 final_model$correct
-final_model$accuracy
+final_model$specificity
