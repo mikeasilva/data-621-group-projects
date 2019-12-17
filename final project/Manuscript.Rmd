@@ -75,18 +75,20 @@ We fit our second model to the LIKELY_CUSTOMER and PPERSAUT variables. Although 
 In evaluating the models we examined we focused on the specificity.  The goal of the CoIL challenge was to accurately predict those would would purchase the insurance policy, so focusing on the model's specificity was the best evaluation metric.  In order to get a better sense of how well the model generalizes, we repeatedly retrained and evaluated the model using diffrent samplings of the training dataset.  The following figure summarizes the distribution of the specificty the models produced on the test dataset:
 
 ```{r}
-#temp <- rbind(data.frame("Model" = c("1"), "Specificity" = model1_robust_results$specificity),
-#              data.frame("Model" = c("2"), "Specificity" = model2_robust_results$specificity))%>%
-temp <- rbind(data.frame("Model" = c("2"), "Specificity" = model2_robust_results$specificity))%>%
+temp <- rbind(data.frame("Model" = c("1"), "Specificity" = model1_robust_results$specificity),
+              data.frame("Model" = c("2"), "Specificity" = model2_robust_results$specificity))
+temp <- 
+  rbind(temp, data.frame("Model" = c("3"), "Specificity" = model3_robust_results$specificity))%>%
   mutate(Model = as.factor(Model))
 
-ggplot(temp, aes(x = Specificity, fill = Model, color = Model)) +
-  geom_density(alpha = 0.5) +
+ggplot(temp, aes(x = Specificity, fill = Model)) +
+  geom_density(alpha = 0.5, color = NA) +
   ylab("Density") +
   scale_fill_brewer(palette = "Set1") +
   theme(legend.position = "bottom") +
-  #geom_vline(xintercept = mean(model1_robust_results$specificity), linetype="dashed", color = "#e41a1c") +
-  geom_vline(xintercept = mean(model2_robust_results$specificity), linetype="dashed", color = "#377eb8")
+  geom_vline(xintercept = mean(model1_robust_results$specificity), linetype="dashed", color = "#e41a1c") +
+  geom_vline(xintercept = mean(model2_robust_results$specificity), linetype="dashed", color = "#377eb8") +
+  geom_vline(xintercept = mean(model3_robust_results$specificity), linetype="dashed", color = "#4daf4a") 
 ```
 
 ## Discussion
@@ -140,7 +142,7 @@ ggplot(temp, aes(x = reorder(MOSTYPE, order), y = share, fill = CARAVAN))+
 
 ## Correlation Coefficients for Variables of Interest
 ```{r}
-vars <- c("CARAVAN", "MOSTYPE", "PPERSAUT", "PBRAND", "MOSHOOFD", "APERSAUT", "LIKELY_CUSTOMERS")
+vars <- c("CARAVAN", "MOSTYPE", "PPERSAUT", "PBRAND", "MOSHOOFD", "APERSAUT", "LIKELY_CUSTOMERS", "DRIVEN_GROWERS")
 temp <- up_train %>%
   mutate(CARAVAN = as.numeric(as.character(CARAVAN)),
          LIKELY_CUSTOMERS = as.numeric(as.character(LIKELY_CUSTOMERS)))
@@ -169,7 +171,7 @@ data_dictionary <- data.frame(
            "AWALAND", "APERSAUT", "ABESAUT", "AMOTSCO", "AVRAAUT", "AAANHANG",
            "ATRACTOR", "AWERKT", "ABROM", "ALEVEN", "APERSONG", "AGEZONG",
            "AWAOREG", "ABRAND", "AZEILPL", "APLEZIER", "AFIETS", "AINBOED",
-           "ABYSTAND", "LIKELY_CUSTOMERS"),
+           "ABYSTAND", "LIKELY_CUSTOMERS", "DRIVEN_GROWERS"),
   Description = c("Number of mobile home policy",
                   "Customer Subtype", "Number of houses", "Avg size household",
                   "Avg age", "Customer main type", "Roman catholic",
@@ -224,7 +226,8 @@ data_dictionary <- data.frame(
                   "Number of boat policies", "Number of bicycle policies",
                   "Number of property insurance policies",
                   "Number of social security insurance policies",
-                  "MOSTYPE = 12, 8, 6, 7, 1, 2, 36, 3, 37, 10, 20, 38, or 11"))
+                  "MOSTYPE = 12, 8, 6, 7, 1, 2, 36, 3, 37, 10, 20, 38, or 11",
+                  "MOSHOOFD = 2"))
 temp <- data_dictionary[data_dictionary$Name %in% vars,]
 row.names(temp) <- NULL
 pander(temp)
