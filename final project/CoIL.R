@@ -271,6 +271,16 @@ robust_results <- function(model_formula, n_tries = 250){
   return(the_results)
 }
 
+## Final Bit of Feature Engineering
+
+df$Driven_Growers <- ifelse(df$MOSHOOFD == "Driven Growers",1,0)
+test$Driven_Growers <- ifelse(test$MOSHOOFD == "Driven Growers",1,0)
+up_train$Driven_Growers <- ifelse(up_train$MOSHOOFD == "Driven Growers",1,0)
+eval$Driven_Growers <- ifelse(eval$MOSHOOFD == "Driven Growers",1,0)
+
+
+
+
 ### Model 1 - Top 5 Important Variables from Random Forest
 model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT, 
               family = binomial(link = "logit"),
@@ -281,16 +291,17 @@ model1_results$specificity
 #model1_robust_results <- robust_results("CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT")
 #summary(model1_robust_results$specificity)
 
-### Model 2 - Likely Customers and Car Policies Contribution Level
-model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT,
+### Model 2 - Likely Customers and Car Policies Contribution Level and whether or not they are a driven grower
+model2 <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT+Driven_Growers,
               family = binomial(link = "logit"),
               up_train)
 model2_results <- score_model(model2, test)
 model2_results$specificity
-model2_robust_results <- robust_results("CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT")
+model2_robust_results <- robust_results("CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT+Driven_Growers")
 summary(model2_robust_results$specificity)
 
 ## Final Model Accuracy
 final_model <- score_model(model2, eval)
 final_model$correct
 final_model$specificity
+
