@@ -19,7 +19,8 @@ knitr::knit_hooks$set(inline = function(x) { if(!is.numeric(x)){ x }else{ pretty
 # Abstract
 
 <!-- In the abstract, the authors should explain the major objective of the study in an objective section, explain how the study was done in a Methods section, describe the findings in a Results section, and report whether the major goal was met in a Conclusion. In general, the reader should ask, If I could not read the entire manuscript, would the abstract adequately summarize it? -->
-A logistic regression based solution to the CoIL Challenge 2000 is described in this paper. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. Models were trained on over sampled data.  The model out preformed other's attemps at solving this classification problem.
+
+This paper describes a logistic regression based solution to the CoIL Challenge 2000. The challenge consists of correctly identifying potential customers for an insurance product, and describing their characteristics. Models were trained on over sampled data.  The model out preformed other's attemps at solving this classification problem.
 
 *Key words: CoIL Challenge, Logistic Regression*
 
@@ -58,6 +59,7 @@ ggplot(data = prediction_scores, aes(x = score, y = n)) +
 # Methodology
 
 <!-- Discuss the key aspects of your problem, data set and regression model(s). Given that you are working on real-world data, explain at a high-level your exploratory data analysis, how you prepared the data for regression modeling, your process for building regression models, and your model selection. -->
+
 The CoIL Challenge dataset is composed of `r df_cols` variables accross `r nrow(df)` observations.  An evaluation dataset is provided with `r nrow(eval)` observations. Five of the predictors are categorical and the remainder are numeric.  Most of the predictors have little to no correlation with the variable of interest (CARAVAN).
 
 ## Experimentation and Results
@@ -72,7 +74,9 @@ The MOSTYPE variable has 40 customer types.  Not all customer types were statisc
 
 We fit our second model to the LIKELY_CUSTOMER and PPERSAUT variables. Although it only has two variables, the model preformed well.  This seemed in-line with expectations that simple models preform best.
 
-In evaluating the models we examined we focused on the specificity.  The goal of the CoIL challenge was to accurately predict those would would purchase the insurance policy, so focusing on the model's specificity was the best evaluation metric.  In order to get a better sense of how well the model generalizes, we repeatedly retrained and evaluated the model using diffrent samplings of the training dataset.  The following figure summarizes the distribution of the specificty the models produced on the test dataset:
+The third model was fit the same as the second model other than the driven growers variable, which is a variable derived from MOSHOOFD variable, specifically it is when the MOSHOOFD variable is equal to 2, which means the specific customer's main type is "Driven Grower" hence the variable name. We chose this because when running decision trees we noticed this specific factor of MOSHOOFD variable often stood out in the decision trees.
+
+In evaluating the models we examined we focused on the specificity.  The goal of the CoIL challenge was to accurately predict those would would purchase the insurance policy, so focusing on the model's specificity was the best evaluation metric.  In order to get a better sense of how well the model generalizes, we repeatedly retrained and evaluated the model using diffrent samplings of the training dataset.  The following figure summarizes the distribution of the specificty the models produced on the test dataset.  The dashed line is how our model preformed:
 
 ```{r}
 temp <- rbind(data.frame("Model" = c("1"), "Specificity" = model1_robust_results$specificity),
@@ -86,18 +90,24 @@ ggplot(temp, aes(x = Specificity, fill = Model)) +
   ylab("Density") +
   scale_fill_brewer(palette = "Set1") +
   theme(legend.position = "bottom") +
-  geom_vline(xintercept = mean(model1_robust_results$specificity), linetype="dashed", color = "#e41a1c") +
-  geom_vline(xintercept = mean(model2_robust_results$specificity), linetype="dashed", color = "#377eb8") +
-  geom_vline(xintercept = mean(model3_robust_results$specificity), linetype="dashed", color = "#4daf4a") 
+  geom_vline(xintercept = mean(model1_results$specificity), linetype="dashed", color = "#e41a1c") +
+  geom_vline(xintercept = mean(model2_results$specificity), linetype="dashed", color = "#377eb8") +
+  geom_vline(xintercept = mean(model3_results$specificity), linetype="dashed", color = "#4daf4a") 
 ```
 
 ## Discussion
 
 <!-- Should state whether their hypotheses were verified or proven untrue or, if no hypotheses were given, whether their research questions were answered. The authors should also comment on their results in light of previous studies and explain what differences (if any) exist between their findings and those reported by others and attempt to provide an explanation for the discrepancies.-->
 
+Our model outpreforms the original cohort of CoIL Challenge researchers.  We found that one
+
 # Conclusions
 
 <!-- Conclude your findings, limitations, and suggest areas for future work. -->
+
+This paper set out to define a model that was effective at identifying potential customers for an insurance policy.  We found that a simple logistic regression model with three variables (two which we derived) outpreformed previous research.
+
+Areas for future work include building an ensemble model using the specification of the third model.  The specificity distribution charts suggests that such an ensemble could preform even better.
 
 \newpage
 
@@ -231,6 +241,14 @@ data_dictionary <- data.frame(
 temp <- data_dictionary[data_dictionary$Name %in% vars,]
 row.names(temp) <- NULL
 pander(temp)
+```
+
+\newpage
+
+## Model Summary
+
+```{r}
+summary(model3)
 ```
 
 \newpage
