@@ -220,17 +220,18 @@ score_model <- function(model, data, threshold = 0.5, predictions = FALSE){
   return(list("cm" = cm, "correct" = correct, "specificity" = specificity))
 }
 
-robust_results <- function(model_formula, n_tries = 250){
+robust_results <- function(model_formula, correction = "upSample", n_tries = 250){
 ## Trains and evaluates the model multiple times
 #
 # INPUTS
 #
 # model_formula = The formula for the logit model
+# correction (optional) = Correct for imbalanced data (i.e. upSample, downSample, none)
 # n_tries (optional) =  The number of runs (250 default)
 # 
 # RETURNS (data.frame)
 #
-# seed = randome number seed
+# seed = random number seed
 # correct = the number of correct CARAVAN = 1 predictions
 # specificity = the specificity of the CARAVAN = 1 predictions
   
@@ -245,10 +246,20 @@ robust_results <- function(model_formula, n_tries = 250){
         train_index <- createDataPartition(df$CARAVAN, p = .7, list = FALSE)
         train <- df[train_index,]
         test_df <- df[-train_index,]
-        # Correct the data imbalance through over sampling
-        training_df <- upSample(x = select(train, -CARAVAN), 
-                                y = train$CARAVAN, 
-                                yname = "CARAVAN")
+        if(correction == "upSample"){
+          # Correct the data imbalance through over sampling
+          training_df <- upSample(x = select(train, -CARAVAN), 
+                                  y = train$CARAVAN, 
+                                  yname = "CARAVAN")
+        } else if(correction == "downSample"){
+          # Correct the data imbalance through under sampling
+          training_df <- downSample(x = select(train, -CARAVAN), 
+                                    y = train$CARAVAN, 
+                                    yname = "CARAVAN")
+        } else {
+          # No correction
+          training_df <- train
+        }
         # Build the model
         model <- glm(model_formula, 
                      family = binomial(link = "logit"), 
@@ -279,7 +290,6 @@ model1 <- glm(CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT,
               up_train)
 model1_results <- score_model(model1, test)
 model1_results$specificity
-# TODO: Uncomment these lines
 model1_robust_results <- robust_results("CARAVAN ~ MOSTYPE + PPERSAUT + MOSHOOFD + PBRAND + APERSAUT")
 summary(model1_robust_results$specificity)
 
@@ -306,3 +316,14 @@ final_model <- score_model(model3, eval)
 final_model$correct
 final_model$specificity
 
+## Test Final Model
+set.seed(42)
+down_train <- downSample(x = select(train, -CARAVAN),
+                         y = train$CARAVAN,
+                         yname = "CARAVAN") 
+model3_down <- glm(CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT + DRIVEN_GROWERS,
+                   family = binomial(link = "logit"),
+                   down_train)
+model3_down_robust_results <- robust_results("CARAVAN ~ LIKELY_CUSTOMERS + PPERSAUT + DRIVEN_GROWERS", "downSample")
+
+model3_down_score <- score_model(model3_down, eval)
