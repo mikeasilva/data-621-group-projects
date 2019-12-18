@@ -99,15 +99,43 @@ ggplot(temp, aes(x = Specificity, fill = Model)) +
 
 <!-- Should state whether their hypotheses were verified or proven untrue or, if no hypotheses were given, whether their research questions were answered. The authors should also comment on their results in light of previous studies and explain what differences (if any) exist between their findings and those reported by others and attempt to provide an explanation for the discrepancies.-->
 
-Our model outpreforms the original cohort of CoIL Challenge researchers.  We found that one
+Our model outpreforms the original cohort of CoIL Challenge researchers.  We found that the being a member of one of the following customer types to be a significant predictor of purchasing the insurance produce (listed in order of the probability of purchasing with the MOSTYPE in parenthesis):
+
+* Affluent young families (12), 
+* Middle class families (8), 
+* Career and childcare (6), 
+* Double income no kids (7), 
+* High Income, expensive child (1), 
+* Very Important Provincials (2), 
+* Couples with teens 'Married with children' (36), 
+* High status seniors (3), 
+* Mixed small town dwellers (37), 
+* Stable family (10), 
+* Ethnically diverse (20), 
+* Traditional families (38), 
+* Family starters (11)
+
+People at the top of the list (most likely to buy) are generally those who are well to do.  This is further reinforced in the model with the inclusion of PPERSAUT or the contribution to car policies.  Those with higher contribution levels are more likely to purchase caravan insurance.
+
+"Driven Growers" are made up of the Career and childcare, Double income no kids, and Middle class families customer types.  Once again these customer types generally have more disposible income and are likely customers.
+
+These findings are similar to what the winner of the CoIL challenge found [@Elkan].  They found that a high PPERSAUT (meaning a level 6) or having two car policies to be the strongest single predictors of having caravan insurance.  They found the other most statistically significant predictors are:
+
+* "purchasing power class" is high (5 or higher, especially 7 or higher)
+* a private third party insurance policy
+* a boat policy
+* a social security insurance policy
+* a single fire policy with higher contribution (level 4)
+
+Elkan explain that "Intuitively, these predictors identify customers who have a car and are wealthier than average, and who in general carry more insurance coverage than average. It is not surprising that these are the people who are most likely to have caravan insurance."  Our findings are inline with this, although we arrived at this conclusion by examining other variables.
 
 # Conclusions
 
 <!-- Conclude your findings, limitations, and suggest areas for future work. -->
 
-This paper set out to define a model that was effective at identifying potential customers for an insurance policy.  We found that a simple logistic regression model with three variables (two which we derived) outpreformed previous research.
+This paper set out to define a model that was effective at identifying potential customers for an insurance policy.  We found that a simple logistic regression model with three variables (two which we derived) outpreformed previous research.  In general terms the three variables correlate with the wealth of the household.  Thus customers that are wealthier than average are most likely candidates to purchase insurance.  
 
-Areas for future work include building an ensemble model using the specification of the third model.  The specificity distribution charts suggests that such an ensemble could preform even better.
+Areas for future work include building an ensemble model using the specification of the third model.  Our repeated modeling has a distribution where the mean number of correct predictions is `r round(mean(model3_robust_results$correct), 0)` which is higher than the `r model3_results$correct`.  It appears that incorporating downsampling into the ensemble might have limited impact on the performance as the mean number of correct predictions is `r round(mean(model3_down_robust_results$correct), 0)`.
 
 \newpage
 
